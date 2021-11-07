@@ -4,7 +4,7 @@
 [![PkgGoDev](https://pkg.go.dev/badge/resenje.org/schulze)](https://pkg.go.dev/resenje.org/schulze)
 [![NewReleases](https://newreleases.io/badge.svg)](https://newreleases.io/github/janos/schulze)
 
-Schulze is a Go implementation of the [Schulze method](https://en.wikipedia.org/wiki/Schulze_method) electoral system. The system is developed in 1997 by Markus Schulze. It is a single winner preferential voting. The Schulze method is also known as Schwartz Sequential dropping (SSD), cloneproof Schwartz sequential dropping (CSSD), the beatpath method, beatpath winner, path voting, and path winner.
+Schulze is a Go implementation of the [Schulze method](https://en.wikipedia.org/wiki/Schulze_method) voting system. The system is developed in 1997 by Markus Schulze. It is a single winner preferential voting. The Schulze method is also known as Schwartz Sequential dropping (SSD), cloneproof Schwartz sequential dropping (CSSD), the beatpath method, beatpath winner, path voting, and path winner.
 
 The Schulze method is a [Condorcet method](https://en.wikipedia.org/wiki/Condorcet_method), which means that if there is a candidate who is preferred by a majority over every other candidate in pairwise comparisons, then this candidate will be the winner when the Schulze method is applied.
 
@@ -14,13 +14,13 @@ White paper [Markus Schulze, "The Schulze Method of Voting"](https://arxiv.org/p
 
 `Compute(v VoteMatrix) (scores []Score, tie bool)` is the core function in the library. It implements the Schulze method on the most compact required representation of votes, called `VoteMatrix`. It returns the ranked list of choices from the matrix, with the first one as the winner. In case that there are multiple choices with the same score, the returned `tie` boolean flag is true.
 
-`VoteMatrix` holds number of votes for every pair of choices. A convenient structure to record this map is implemented as the `Election` type in this package, but it is not required to be used.
+`VoteMatrix` holds number of votes for every pair of choices. A convenient structure to record this map is implemented as the `Voting` type in this package, but it is not required to be used.
 
-## Election
+## Voting
 
-`Election` is the in-memory data structure that allows voting ballots to be submitted, to export the `VoteMatrix` and also to compute the ranked list of choices.
+`Voting` is the in-memory data structure that allows voting ballots to be submitted, to export the `VoteMatrix` and also to compute the ranked list of choices.
 
-The act of voting represents calling the `Election.Vote(b Ballot) error` function with a `Ballot` map where keys in the map are choices and values are their rankings. Lowest number represents the highest rank. Not all choices have to be ranked and multiple choices can have the same rank. Ranks do not have to be in consecutive order.
+The act of voting represents calling the `Voting.Vote(b Ballot) error` function with a `Ballot` map where keys in the map are choices and values are their rankings. Lowest number represents the highest rank. Not all choices have to be ranked and multiple choices can have the same rank. Ranks do not have to be in consecutive order.
 
 ## Example
 
@@ -35,8 +35,8 @@ import (
 )
 
 func main() {
-	// Create a new election.
-	e := schulze.NewElection("A", "B", "C", "D", "E")
+	// Create a new voting.
+	e := schulze.NewVoting("A", "B", "C", "D", "E")
 
 	// First vote.
 	if err := e.Vote(schulze.Ballot{
@@ -63,9 +63,9 @@ func main() {
 }
 ```
 
-## Alternative election implementations
+## Alternative voting implementations
 
-Function `Compute` is deliberately left exported with `VoteMatrix` map to allow different election implementations. The `Election` type in this package is purely in-memory but in reality, a proper way of authenticating users and storing the voting records are crucial and may require implementation with specific persistence features.
+Function `Compute` is deliberately left exported with `VoteMatrix` map to allow different voting implementations. The `Voting` type in this package is purely in-memory but in reality, a proper way of authenticating users and storing the voting records are crucial and may require implementation with specific persistence features.
 
 ## License
 

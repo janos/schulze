@@ -12,9 +12,9 @@ import (
 	"resenje.org/schulze"
 )
 
-func ExampleElection() {
-	// Create a new election.
-	e := schulze.NewElection("A", "B", "C", "D", "E")
+func ExampleVoting() {
+	// Create a new voting.
+	e := schulze.NewVoting("A", "B", "C", "D", "E")
 
 	// First vote.
 	if err := e.Vote(schulze.Ballot{

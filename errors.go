@@ -8,7 +8,7 @@ package schulze
 import "fmt"
 
 // UnknownChoiceError represent an error in case that a choice that is not in
-// the election is used.
+// the voting is used.
 type UnknownChoiceError struct {
 	Choice string
 }

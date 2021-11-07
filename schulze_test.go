@@ -12,7 +12,7 @@ import (
 	"resenje.org/schulze"
 )
 
-func TestElection(t *testing.T) {
+func TestVoting(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		choices []string
@@ -175,7 +175,7 @@ func TestElection(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			e := schulze.NewElection(tc.choices...)
+			e := schulze.NewVoting(tc.choices...)
 
 			for _, b := range tc.ballots {
 				if err := e.Vote(b); err != nil {
