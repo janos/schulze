@@ -11,18 +11,18 @@ import (
 )
 
 // Score represents a total number of wins for a single choice.
-type Score struct {
-	Choice string
+type Score[C comparable] struct {
+	Choice C
 	Wins   int
 }
 
 // VoteMatrix holds number of votes for every pair of choices.
-type VoteMatrix map[string]map[string]int
+type VoteMatrix[C comparable] map[C]map[C]int
 
 // Compute calculates a sorted list of choices with the total number of wins for
 // each of them. If there are multiple winners, tie boolean parameter is true.
-func Compute(v VoteMatrix) (scores []Score, tie bool) {
-	choicesMap := make(map[string]struct{})
+func Compute[C comparable](v VoteMatrix[C]) (scores []Score[C], tie bool) {
+	choicesMap := make(map[C]struct{})
 	for c1, row := range v {
 		for c2 := range row {
 			choicesMap[c1] = struct{}{}
@@ -31,12 +31,12 @@ func Compute(v VoteMatrix) (scores []Score, tie bool) {
 	}
 	size := len(choicesMap)
 
-	choices := make([]string, 0, size)
+	choices := make([]C, 0, size)
 	for c := range choicesMap {
 		choices = append(choices, c)
 	}
 
-	choiceIndexes := make(map[string]int)
+	choiceIndexes := make(map[C]int)
 	for i, c := range choices {
 		choiceIndexes[c] = i
 	}
@@ -50,9 +50,9 @@ func Compute(v VoteMatrix) (scores []Score, tie bool) {
 	return compute(matrix, choices)
 }
 
-func compute(matrix [][]voteCount, choices []string) (scores []Score, tie bool) {
+func compute[C comparable](matrix [][]voteCount, choices []C) (scores []Score[C], tie bool) {
 	strengths := calculatePairwiseStrengths(matrix)
-	return calculteScores(strengths, choices)
+	return calculateScores(strengths, choices)
 }
 
 func calculatePairwiseStrengths(m [][]voteCount) [][]strength {
@@ -91,7 +91,7 @@ func calculatePairwiseStrengths(m [][]voteCount) [][]strength {
 	return strengths
 }
 
-func calculteScores(strengths [][]strength, choices []string) (scores []Score, tie bool) {
+func calculateScores[C comparable](strengths [][]strength, choices []C) (scores []Score[C], tie bool) {
 	size := len(strengths)
 	wins := make(map[int][]int)
 
@@ -109,18 +109,15 @@ func calculteScores(strengths [][]strength, choices []string) (scores []Score, t
 		wins[count] = append(wins[count], i)
 	}
 
-	scores = make([]Score, 0, len(wins))
+	scores = make([]Score[C], 0, len(wins))
 
 	for count, choicesIndex := range wins {
 		for _, index := range choicesIndex {
-			scores = append(scores, Score{Choice: choices[index], Wins: count})
+			scores = append(scores, Score[C]{Choice: choices[index], Wins: count})
 		}
 	}
 
-	sort.Slice(scores, func(i, j int) bool {
-		if scores[i].Wins == scores[j].Wins {
-			return scores[i].Choice < scores[j].Choice
-		}
+	sort.SliceStable(scores, func(i, j int) bool {
 		return scores[i].Wins > scores[j].Wins
 	})
 

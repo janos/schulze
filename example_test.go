@@ -17,14 +17,14 @@ func ExampleVoting() {
 	e := schulze.NewVoting("A", "B", "C", "D", "E")
 
 	// First vote.
-	if err := e.Vote(schulze.Ballot{
+	if err := e.Vote(schulze.Ballot[string]{
 		"A": 1,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Second vote.
-	if err := e.Vote(schulze.Ballot{
+	if err := e.Vote(schulze.Ballot[string]{
 		"A": 1,
 		"B": 1,
 		"D": 2,

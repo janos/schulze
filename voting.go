@@ -5,19 +5,21 @@
 
 package schulze
 
-import "sort"
+import (
+	"sort"
+)
 
 // Voting holds voting state in memory for a list of choices and provides
 // methods to vote, to export current voting state and to calculate the winner
 // using the Schulze method.
-type Voting struct {
-	choices []string
+type Voting[C comparable] struct {
+	choices []C
 	matrix  [][]voteCount
 }
 
 // NewVoting initializes a new voting with provided choices.
-func NewVoting(choices ...string) *Voting {
-	return &Voting{
+func NewVoting[C comparable](choices ...C) *Voting[C] {
+	return &Voting[C]{
 		choices: choices,
 		matrix:  makeVoteCountMatrix(len(choices)),
 	}
@@ -26,9 +28,9 @@ func NewVoting(choices ...string) *Voting {
 // Ballot represents a single vote with ranked choices. Lowest number represents
 // the highest rank. Not all choices have to be ranked and multiple choices can
 // have the same rank. Ranks do not have to be in consecutive order.
-type Ballot map[string]int
+type Ballot[C comparable] map[C]int
 
-func (e *Voting) Vote(b Ballot) error {
+func (e *Voting[C]) Vote(b Ballot[C]) error {
 	ranks, err := ballotRanks(b, e.choices)
 	if err != nil {
 		return err
@@ -50,14 +52,14 @@ func (e *Voting) Vote(b Ballot) error {
 
 // VoteMatrix returns the state of the voting in a form of VoteMatrix with
 // pairwise number of votes.
-func (e *Voting) VoteMatrix() VoteMatrix {
+func (e *Voting[C]) VoteMatrix() VoteMatrix[C] {
 	l := len(e.matrix)
-	matrix := make(VoteMatrix, l)
+	matrix := make(VoteMatrix[C], l)
 
 	for i := 0; i < l; i++ {
 		for j := 0; j < l; j++ {
 			if _, ok := matrix[e.choices[i]]; !ok {
-				matrix[e.choices[i]] = make(map[string]int, l)
+				matrix[e.choices[i]] = make(map[C]int, l)
 			}
 			matrix[e.choices[i]][e.choices[j]] = int(e.matrix[i][j])
 		}
@@ -68,18 +70,18 @@ func (e *Voting) VoteMatrix() VoteMatrix {
 
 // Compute calculates a sorted list of choices with the total number of wins for
 // each of them. If there are multiple winners, tie boolean parameter is true.
-func (e *Voting) Compute() (scores []Score, tie bool) {
+func (e *Voting[C]) Compute() (scores []Score[C], tie bool) {
 	return compute(e.matrix, e.choices)
 }
 
-func ballotRanks(b Ballot, choices []string) ([][]choiceIndex, error) {
+func ballotRanks[C comparable](b Ballot[C], choices []C) ([][]choiceIndex, error) {
 	ballotRanks := make(map[int][]choiceIndex)
 	rankedChoices := make(map[choiceIndex]struct{})
 
 	for o, rank := range b {
 		index := getChoiceIndex(o, choices)
 		if index < 0 {
-			return nil, &UnknownChoiceError{o}
+			return nil, &UnknownChoiceError[C]{o}
 		}
 		ballotRanks[rank] = append(ballotRanks[rank], index)
 		rankedChoices[index] = struct{}{}
@@ -114,7 +116,7 @@ func ballotRanks(b Ballot, choices []string) ([][]choiceIndex, error) {
 
 type choiceIndex int
 
-func getChoiceIndex(choice string, choices []string) choiceIndex {
+func getChoiceIndex[C comparable](choice C, choices []C) choiceIndex {
 	for i, o := range choices {
 		if o == choice {
 			return choiceIndex(i)

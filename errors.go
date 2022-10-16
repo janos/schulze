@@ -5,14 +5,16 @@
 
 package schulze
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // UnknownChoiceError represent an error in case that a choice that is not in
 // the voting is used.
-type UnknownChoiceError struct {
-	Choice string
+type UnknownChoiceError[C comparable] struct {
+	Choice C
 }
 
-func (e *UnknownChoiceError) Error() string {
-	return fmt.Sprintf("unknown choice %s", e.Choice)
+func (e *UnknownChoiceError[C]) Error() string {
+	return fmt.Sprintf("unknown choice %v", e.Choice)
 }
