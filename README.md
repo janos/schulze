@@ -36,30 +36,30 @@ import (
 
 func main() {
 	// Create a new voting.
-	e := schulze.NewVoting[string]("A", "B", "C", "D", "E")
+	e := schulze.NewVoting(5)
 
 	// First vote.
-	if err := e.Vote(schulze.Ballot[string]{
-		"A": 1,
+	if err := e.Vote(schulze.Ballot{
+		0: 1,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Second vote.
-	if err := e.Vote(schulze.Ballot[string]{
-		"A": 1,
-		"B": 1,
-		"D": 2,
+	if err := e.Vote(schulze.Ballot{
+		0: 1,
+		1: 1,
+		2: 2,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
-	// Calculate the result.
-	result, tie := e.Compute()
+	// Calculate results.
+	r, tie := e.Results()
 	if tie {
 		log.Fatal("tie")
 	}
-	fmt.Println("winner:", result[0].Choice)
+	fmt.Println("winner:", r[0].Choice)
 }
 ```
 

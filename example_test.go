@@ -14,26 +14,29 @@ import (
 
 func ExampleVoting() {
 	// Create a new voting.
-	e := schulze.NewVoting("A", "B", "C", "D", "E")
+	v, err := schulze.NewVoting("A", "B", "C")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// First vote.
-	if err := e.Vote(schulze.Ballot[string]{
+	if err := v.Vote(schulze.Ballot[string]{
 		"A": 1,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Second vote.
-	if err := e.Vote(schulze.Ballot[string]{
+	if err := v.Vote(schulze.Ballot[string]{
 		"A": 1,
 		"B": 1,
-		"D": 2,
+		"C": 2,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Calculate the result.
-	result, tie := e.Compute()
+	result, tie := v.Results()
 	if tie {
 		log.Fatal("tie")
 	}
