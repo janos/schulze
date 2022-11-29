@@ -3,83 +3,159 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package schulze implements the Schulze method for single winner voting.
+// Package schulze implements the Schulze preferential voting method.
 package schulze
 
 import (
+	"fmt"
 	"sort"
 )
 
-// Score represents a total number of wins for a single choice.
-type Score struct {
-	Choice string
-	Wins   int
+// NewPreferences initializes a fixed size slice that stores all pairwise
+// preferences for voting. The resulting slice supposed to be updated by the
+// Vote function with Ballot preferences and read by the Results function to
+// order choices by their wins.
+func NewPreferences(choicesLength int) []int {
+	return make([]int, choicesLength*choicesLength)
 }
 
-// VoteMatrix holds number of votes for every pair of choices.
-type VoteMatrix map[string]map[string]int
+// Ballot represents a single vote with ranked choices. Lowest number represents
+// the highest rank. Not all choices have to be ranked and multiple choices can
+// have the same rank. Ranks do not have to be in consecutive order.
+type Ballot[C comparable] map[C]int
 
-// Compute calculates a sorted list of choices with the total number of wins for
-// each of them. If there are multiple winners, tie boolean parameter is true.
-func Compute(v VoteMatrix) (scores []Score, tie bool) {
-	choicesMap := make(map[string]struct{})
-	for c1, row := range v {
-		for c2 := range row {
-			choicesMap[c1] = struct{}{}
-			choicesMap[c2] = struct{}{}
-		}
-	}
-	size := len(choicesMap)
-
-	choices := make([]string, 0, size)
-	for c := range choicesMap {
-		choices = append(choices, c)
+// Vote updates the preferences passed as th first argument with the Ballot
+// values.
+func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) error {
+	ranks, choicesCount, err := ballotRanks(choices, b)
+	if err != nil {
+		return fmt.Errorf("ballot ranks: %w", err)
 	}
 
-	choiceIndexes := make(map[string]int)
-	for i, c := range choices {
-		choiceIndexes[c] = i
-	}
-
-	matrix := makeVoteCountMatrix(size)
-	for c1, row := range v {
-		for c2, count := range row {
-			matrix[choiceIndexes[c1]][choiceIndexes[c2]] = voteCount(count)
-		}
-	}
-	return compute(matrix, choices)
-}
-
-func compute(matrix [][]voteCount, choices []string) (scores []Score, tie bool) {
-	strengths := calculatePairwiseStrengths(matrix)
-	return calculteScores(strengths, choices)
-}
-
-func calculatePairwiseStrengths(m [][]voteCount) [][]strength {
-	size := len(m)
-	strengths := makeStrenghtMatrix(size)
-
-	for i := 0; i < size; i++ {
-		for j := 0; j < size; j++ {
-			if i != j {
-				c := m[i][j]
-				if c > m[j][i] {
-					strengths[i][j] = strength(c)
+	for rank, choices1 := range ranks {
+		rest := ranks[rank+1:]
+		for _, i := range choices1 {
+			for _, choices1 := range rest {
+				for _, j := range choices1 {
+					preferences[int(i)*choicesCount+int(j)]++
 				}
 			}
 		}
 	}
 
-	for i := 0; i < size; i++ {
-		for j := 0; j < size; j++ {
+	return nil
+}
+
+// Result represents a total number of wins for a single choice.
+type Result[C comparable] struct {
+	// The choice value.
+	Choice C
+	// 0-based ordinal number of the choice in the choice slice.
+	Index int
+	// Number of wins in pairwise comparisons to other choices votings.
+	Wins int
+}
+
+// Compute calculates a sorted list of choices with the total number of wins for
+// each of them by reading preferences data previously populated by the Vote
+// function. If there are multiple winners, tie boolean parameter is true.
+func Compute[C comparable](preferences []int, choices []C) (results []Result[C], tie bool) {
+	strengths := calculatePairwiseStrengths(choices, preferences)
+	return calculateResults(choices, strengths)
+}
+
+type choiceIndex int
+
+func getChoiceIndex[C comparable](choices []C, choice C) choiceIndex {
+	for i, c := range choices {
+		if c == choice {
+			return choiceIndex(i)
+		}
+	}
+	return -1
+}
+
+func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex, choicesLen int, err error) {
+	choicesLen = len(choices)
+	ballotLen := len(b)
+	hasUnrankedChoices := ballotLen != choicesLen
+
+	ballotRanks := make(map[int][]choiceIndex, ballotLen)
+	var rankedChoices bitSet
+	if hasUnrankedChoices {
+		rankedChoices = newBitset(uint(choicesLen))
+	}
+
+	choicesLen = len(choices)
+
+	for choice, rank := range b {
+		index := getChoiceIndex(choices, choice)
+		if index < 0 {
+			return nil, 0, &UnknownChoiceError[C]{Choice: choice}
+		}
+		ballotRanks[rank] = append(ballotRanks[rank], index)
+
+		if hasUnrankedChoices {
+			rankedChoices.set(uint(index))
+		}
+	}
+
+	rankNumbers := make([]int, 0, len(ballotRanks))
+	for rank := range ballotRanks {
+		rankNumbers = append(rankNumbers, rank)
+	}
+
+	sort.Slice(rankNumbers, func(i, j int) bool {
+		return rankNumbers[i] < rankNumbers[j]
+	})
+
+	ranks = make([][]choiceIndex, 0, len(rankNumbers))
+	for _, rankNumber := range rankNumbers {
+		ranks = append(ranks, ballotRanks[rankNumber])
+	}
+
+	if hasUnrankedChoices {
+		unranked := make([]choiceIndex, 0, choicesLen-ballotLen)
+		for i := uint(0); int(i) < choicesLen; i++ {
+			if !rankedChoices.isSet(i) {
+				unranked = append(unranked, choiceIndex(i))
+			}
+		}
+		if len(unranked) > 0 {
+			ranks = append(ranks, unranked)
+		}
+	}
+
+	return ranks, choicesLen, nil
+}
+
+func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []strength {
+	choicesCount := len(choices)
+
+	strengths := make([]strength, choicesCount*choicesCount)
+
+	for i := 0; i < choicesCount; i++ {
+		for j := 0; j < choicesCount; j++ {
 			if i != j {
-				for k := 0; k < size; k++ {
+				c := preferences[i*choicesCount+j]
+				if c > preferences[j*choicesCount+i] {
+					strengths[i*choicesCount+j] = strength(c)
+				}
+			}
+		}
+	}
+
+	for i := 0; i < choicesCount; i++ {
+		for j := 0; j < choicesCount; j++ {
+			if i != j {
+				for k := 0; k < choicesCount; k++ {
 					if (i != k) && (j != k) {
-						strengths[j][k] = max(
-							strengths[j][k],
+						jk := j*choicesCount + k
+						strengths[jk] = max(
+							strengths[jk],
 							min(
-								strengths[j][i],
-								strengths[i][k],
+								strengths[j*choicesCount+i],
+								strengths[i*choicesCount+k],
 							),
 						)
 					}
@@ -91,65 +167,39 @@ func calculatePairwiseStrengths(m [][]voteCount) [][]strength {
 	return strengths
 }
 
-func calculteScores(strengths [][]strength, choices []string) (scores []Score, tie bool) {
-	size := len(strengths)
-	wins := make(map[int][]int)
+func calculateResults[C comparable](choices []C, strengths []strength) (results []Result[C], tie bool) {
+	choicesCount := len(choices)
+	results = make([]Result[C], 0, choicesCount)
 
-	for i := 0; i < size; i++ {
+	for i := 0; i < choicesCount; i++ {
 		var count int
 
-		for j := 0; j < size; j++ {
+		for j := 0; j < choicesCount; j++ {
 			if i != j {
-				if strengths[i][j] > strengths[j][i] {
+				if strengths[i*choicesCount+j] > strengths[j*choicesCount+i] {
 					count++
 				}
 			}
 		}
+		results = append(results, Result[C]{Choice: choices[i], Index: i, Wins: count})
 
-		wins[count] = append(wins[count], i)
 	}
 
-	scores = make([]Score, 0, len(wins))
-
-	for count, choicesIndex := range wins {
-		for _, index := range choicesIndex {
-			scores = append(scores, Score{Choice: choices[index], Wins: count})
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Wins == results[j].Wins {
+			return results[i].Index < results[j].Index
 		}
-	}
-
-	sort.Slice(scores, func(i, j int) bool {
-		if scores[i].Wins == scores[j].Wins {
-			return scores[i].Choice < scores[j].Choice
-		}
-		return scores[i].Wins > scores[j].Wins
+		return results[i].Wins > results[j].Wins
 	})
 
-	if len(scores) >= 2 {
-		tie = scores[0].Wins == scores[1].Wins
+	if len(results) >= 2 {
+		tie = results[0].Wins == results[1].Wins
 	}
 
-	return scores, tie
+	return results, tie
 }
-
-type voteCount int
 
 type strength int
-
-func makeVoteCountMatrix(size int) [][]voteCount {
-	matrix := make([][]voteCount, size)
-	for i := 0; i < size; i++ {
-		matrix[i] = make([]voteCount, size)
-	}
-	return matrix
-}
-
-func makeStrenghtMatrix(size int) [][]strength {
-	matrix := make([][]strength, size)
-	for i := 0; i < size; i++ {
-		matrix[i] = make([]strength, size)
-	}
-	return matrix
-}
 
 func min(a, b strength) strength {
 	if a < b {
