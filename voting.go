@@ -1,0 +1,34 @@
+// Copyright (c) 2022, Janoš Guljaš <janos@resenje.org>
+// All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package schulze
+
+// Voting holds number of votes for every pair of choices. It is a convenient
+// construct to use when the preferences slice does not have to be exposed, and
+// should be kept safe from accidental mutation. Methods on the Voting type are
+// not safe for concurrent calls.
+type Voting[C comparable] struct {
+	choices     []C
+	preferences []int
+}
+
+// NewVoting initializes a new voting state for the provided choices.
+func NewVoting[C comparable](choices []C) *Voting[C] {
+	return &Voting[C]{
+		choices:     choices,
+		preferences: NewPreferences(len(choices)),
+	}
+}
+
+// Vote adds a voting preferences by a single voting ballot.
+func (v *Voting[C]) Vote(b Ballot[C]) error {
+	return Vote(v.preferences, v.choices, b)
+}
+
+// Compute calculates a sorted list of choices with the total number of wins for
+// each of them. If there are multiple winners, tie boolean parameter is true.
+func (v *Voting[C]) Compute() (results []Result[C], tie bool) {
+	return Compute(v.preferences, v.choices)
+}

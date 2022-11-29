@@ -20,17 +20,17 @@ func TestVoting(t *testing.T) {
 		name    string
 		choices []string
 		ballots []schulze.Ballot[string]
-		result  []schulze.Score[string]
+		result  []schulze.Result[string]
 		tie     bool
 	}{
 		{
 			name:   "empty",
-			result: []schulze.Score[string]{},
+			result: []schulze.Result[string]{},
 		},
 		{
 			name:    "single option no votes",
 			choices: []string{"A"},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 0},
 			},
 		},
@@ -40,7 +40,7 @@ func TestVoting(t *testing.T) {
 			ballots: []schulze.Ballot[string]{
 				{"A": 1},
 			},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 0},
 			},
 		},
@@ -50,7 +50,7 @@ func TestVoting(t *testing.T) {
 			ballots: []schulze.Ballot[string]{
 				{"A": 1},
 			},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 1},
 				{Choice: "B", Index: 1, Wins: 0},
 			},
@@ -62,7 +62,7 @@ func TestVoting(t *testing.T) {
 				{"A": 1},
 				{"A": 1, "B": 2},
 			},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 1},
 				{Choice: "B", Index: 1, Wins: 0},
 			},
@@ -75,7 +75,7 @@ func TestVoting(t *testing.T) {
 				{"A": 1, "B": 2},
 				{"A": 1, "B": 2, "C": 3},
 			},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 2},
 				{Choice: "B", Index: 1, Wins: 1},
 				{Choice: "C", Index: 2, Wins: 0},
@@ -88,7 +88,7 @@ func TestVoting(t *testing.T) {
 				{"A": 1},
 				{"B": 1},
 			},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 1},
 				{Choice: "B", Index: 1, Wins: 1},
 				{Choice: "C", Index: 2, Wins: 0},
@@ -97,18 +97,36 @@ func TestVoting(t *testing.T) {
 		},
 		{
 			name:    "complex",
-			choices: []string{"A", "B", "C", "D"},
+			choices: []string{"A", "B", "C", "D", "E"},
 			ballots: []schulze.Ballot[string]{
 				{"A": 1, "B": 1},
 				{"B": 1, "C": 1, "A": 2},
 				{"A": 1, "B": 2, "C": 2},
 				{"A": 1, "B": 200, "C": 10},
 			},
-			result: []schulze.Score[string]{
-				{Choice: "A", Index: 0, Wins: 3},
-				{Choice: "B", Index: 1, Wins: 1},
-				{Choice: "C", Index: 2, Wins: 1},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 4},
+				{Choice: "B", Index: 1, Wins: 2},
+				{Choice: "C", Index: 2, Wins: 2},
 				{Choice: "D", Index: 3, Wins: 0},
+				{Choice: "E", Index: 4, Wins: 0},
+			},
+		},
+		{
+			name:    "duplicate choice", // only the first of the duplicate choices should receive votes
+			choices: []string{"A", "B", "C", "C", "C"},
+			ballots: []schulze.Ballot[string]{
+				{"A": 1, "B": 1},
+				{"B": 1, "C": 1, "A": 2},
+				{"A": 1, "B": 2, "C": 2},
+				{"A": 1, "B": 200, "C": 10},
+			},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 4},
+				{Choice: "B", Index: 1, Wins: 2},
+				{Choice: "C", Index: 2, Wins: 2},
+				{Choice: "C", Index: 3, Wins: 0},
+				{Choice: "C", Index: 4, Wins: 0},
 			},
 		},
 		{
@@ -168,7 +186,7 @@ func TestVoting(t *testing.T) {
 				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
 				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
 			},
-			result: []schulze.Score[string]{
+			result: []schulze.Result[string]{
 				{Choice: "E", Index: 4, Wins: 4},
 				{Choice: "A", Index: 0, Wins: 3},
 				{Choice: "C", Index: 2, Wins: 2},
@@ -178,45 +196,56 @@ func TestVoting(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := schulze.NewVoting(tc.choices...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			t.Run("functional", func(t *testing.T) {
+				preferences := schulze.NewPreferences(len(tc.choices))
 
-			for _, b := range tc.ballots {
-				if err := v.Vote(b); err != nil {
-					t.Fatal(err)
+				for _, b := range tc.ballots {
+					if err := schulze.Vote(preferences, tc.choices, b); err != nil {
+						t.Fatal(err)
+					}
 				}
-			}
 
-			result, tie := v.Results()
-			if tie != tc.tie {
-				t.Errorf("got tie %v, want %v", tie, tc.tie)
-			}
-			if !reflect.DeepEqual(result, tc.result) {
-				t.Errorf("got result %+v, want %+v", result, tc.result)
-			}
+				result, tie := schulze.Compute(preferences, tc.choices)
+				if tie != tc.tie {
+					t.Errorf("got tie %v, want %v", tie, tc.tie)
+				}
+				if !reflect.DeepEqual(result, tc.result) {
+					t.Errorf("got result %+v, want %+v", result, tc.result)
+				}
+			})
+			t.Run("Voting", func(t *testing.T) {
+				v := schulze.NewVoting(tc.choices)
+
+				for _, b := range tc.ballots {
+					if err := v.Vote(b); err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				result, tie := v.Compute()
+				if tie != tc.tie {
+					t.Errorf("got tie %v, want %v", tie, tc.tie)
+				}
+				if !reflect.DeepEqual(result, tc.result) {
+					t.Errorf("got result %+v, want %+v", result, tc.result)
+				}
+			})
 		})
 	}
 }
 
-func BenchmarkNew(b *testing.B) {
+func BenchmarkNewVoting(b *testing.B) {
 	choices := newChoices(1000)
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		if _, err := schulze.NewVoting(choices...); err != nil {
-			b.Fatal(err)
-		}
+		_ = schulze.NewVoting(choices)
 	}
 }
 
-func BenchmarkVote(b *testing.B) {
-	v, err := schulze.NewVoting(newChoices(1000)...)
-	if err != nil {
-		b.Fatal(err)
-	}
+func BenchmarkVoting_Vote(b *testing.B) {
+	v := schulze.NewVoting(newChoices(1000))
 
 	b.ResetTimer()
 
@@ -229,17 +258,32 @@ func BenchmarkVote(b *testing.B) {
 	}
 }
 
-func BenchmarkResults(b *testing.B) {
+func BenchmarkVote(b *testing.B) {
+	const choicesCount = 1000
+
+	choices := newChoices(choicesCount)
+	preferences := schulze.NewPreferences(choicesCount)
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+			"a": 1,
+		}); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVoting_Results(b *testing.B) {
 	rand.Seed(time.Now().UnixNano())
 
 	const choicesCount = 100
 
 	choices := newChoices(choicesCount)
 
-	v, err := schulze.NewVoting(choices...)
-	if err != nil {
-		b.Fatal(err)
-	}
+	v := schulze.NewVoting(choices)
+
 	for i := 0; i < 1000; i++ {
 		ballot := make(schulze.Ballot[string])
 		ballot[choices[rand.Intn(choicesCount)]] = 1
@@ -256,7 +300,35 @@ func BenchmarkResults(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		_, _ = v.Results()
+		_, _ = v.Compute()
+	}
+}
+
+func BenchmarkResults(b *testing.B) {
+	rand.Seed(time.Now().UnixNano())
+
+	const choicesCount = 100
+
+	choices := newChoices(choicesCount)
+	preferences := schulze.NewPreferences(choicesCount)
+
+	for i := 0; i < 1000; i++ {
+		ballot := make(schulze.Ballot[string])
+		ballot[choices[rand.Intn(choicesCount)]] = 1
+		ballot[choices[rand.Intn(choicesCount)]] = 1
+		ballot[choices[rand.Intn(choicesCount)]] = 2
+		ballot[choices[rand.Intn(choicesCount)]] = 3
+		ballot[choices[rand.Intn(choicesCount)]] = 20
+		ballot[choices[rand.Intn(choicesCount)]] = 20
+		if err := schulze.Vote(preferences, choices, ballot); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		_, _ = schulze.Compute(preferences, choices)
 	}
 }
 

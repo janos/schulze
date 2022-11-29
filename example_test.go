@@ -14,10 +14,7 @@ import (
 
 func ExampleVoting() {
 	// Create a new voting.
-	v, err := schulze.NewVoting("A", "B", "C")
-	if err != nil {
-		log.Fatal(err)
-	}
+	v := schulze.NewVoting([]string{"A", "B", "C"})
 
 	// First vote.
 	if err := v.Vote(schulze.Ballot[string]{
@@ -36,7 +33,38 @@ func ExampleVoting() {
 	}
 
 	// Calculate the result.
-	result, tie := v.Results()
+	result, tie := v.Compute()
+	if tie {
+		log.Fatal("tie")
+	}
+	fmt.Println("winner:", result[0].Choice)
+
+	// Output: winner: A
+}
+
+func ExampleNewPreferences() {
+	// Create a new voting.
+	choices := []string{"A", "B", "C"}
+	preferences := schulze.NewPreferences(len(choices))
+
+	// First vote.
+	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+		"A": 1,
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	// Second vote.
+	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+		"A": 1,
+		"B": 1,
+		"C": 2,
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	// Calculate the result.
+	result, tie := schulze.Compute(preferences, choices)
 	if tie {
 		log.Fatal("tie")
 	}

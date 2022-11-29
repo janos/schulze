@@ -10,17 +10,16 @@ The Schulze method is a [Condorcet method](https://en.wikipedia.org/wiki/Condorc
 
 White paper [Markus Schulze, "The Schulze Method of Voting"](https://arxiv.org/pdf/1804.02973.pdf).
 
-## Compute
+## Vote and Compute
 
-`Compute(v VoteMatrix) (scores []Score, tie bool)` is the core function in the library. It implements the Schulze method on the most compact required representation of votes, called `VoteMatrix`. It returns the ranked list of choices from the matrix, with the first one as the winner. In case that there are multiple choices with the same score, the returned `tie` boolean flag is true.
+`Vote` and `Compute` are the core functions in the library. They implement the Schulze method on the most compact required representation of votes, here called preferences that is properly initialized with the `NewPreferences` function. `Vote` writes the `Ballot` values to the provided preferences and `Compute` returns the ranked list of choices from the preferences, with the first one as the winner. In case that there are multiple choices with the same score, the returned `tie` boolean flag is true.
 
-`VoteMatrix` holds number of votes for every pair of choices. A convenient structure to record this map is implemented as the `Voting` type in this package, but it is not required to be used.
+The act of voting represents calling the `Vote` function with a `Ballot` map where keys in the map are choices and values are their rankings. Lowest number represents the highest rank. Not all choices have to be ranked and multiple choices can have the same rank. Ranks do not have to be in consecutive order.
 
 ## Voting
 
-`Voting` is the in-memory data structure that allows voting ballots to be submitted, to export the `VoteMatrix` and also to compute the ranked list of choices.
+`Voting` holds number of votes for every pair of choices. It is a convenient construct to use when the preferences slice does not have to be exposed, and should be kept safe from accidental mutation. Methods on the Voting type are not safe for concurrent calls.
 
-The act of voting represents calling the `Voting.Vote(b Ballot) error` function with a `Ballot` map where keys in the map are choices and values are their rankings. Lowest number represents the highest rank. Not all choices have to be ranked and multiple choices can have the same rank. Ranks do not have to be in consecutive order.
 
 ## Example
 
@@ -35,37 +34,33 @@ import (
 )
 
 func main() {
-	// Create a new voting.
-	e := schulze.NewVoting(5)
+	choices := []string{"A", "B", "C"}
+	preferences := schulze.NewPreferences(len(choices))
 
 	// First vote.
-	if err := e.Vote(schulze.Ballot{
-		0: 1,
+	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+		"A": 1,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Second vote.
-	if err := e.Vote(schulze.Ballot{
-		0: 1,
-		1: 1,
-		2: 2,
+	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+		"A": 1,
+		"B": 1,
+		"C": 2,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
-	// Calculate results.
-	r, tie := e.Results()
+	// Calculate the result.
+	result, tie := schulze.Compute(preferences, choices)
 	if tie {
 		log.Fatal("tie")
 	}
-	fmt.Println("winner:", r[0].Choice)
+	fmt.Println("winner:", result[0].Choice)
 }
 ```
-
-## Alternative voting implementations
-
-Function `Compute` is deliberately left exported with `VoteMatrix` map to allow different voting implementations. The `Voting` type in this package is purely in-memory but in reality, a proper way of authenticating users and storing the voting records are crucial and may require implementation with specific persistence features.
 
 ## License
 
