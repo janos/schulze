@@ -27,6 +27,11 @@ func (v *Voting[C]) Vote(b Ballot[C]) error {
 	return Vote(v.preferences, v.choices, b)
 }
 
+// Unvote removes a voting preferences from a single voting ballot.
+func (v *Voting[C]) Unvote(b Ballot[C]) error {
+	return Unvote(v.preferences, v.choices, b)
+}
+
 // Compute calculates a sorted list of choices with the total number of wins for
 // each of them. If there are multiple winners, tie boolean parameter is true.
 func (v *Voting[C]) Compute() (results []Result[C], tie bool) {

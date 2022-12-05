@@ -24,9 +24,22 @@ func NewPreferences(choicesLength int) []int {
 // have the same rank. Ranks do not have to be in consecutive order.
 type Ballot[C comparable] map[C]int
 
-// Vote updates the preferences passed as th first argument with the Ballot
+// Vote updates the preferences passed as the first argument with the Ballot
 // values.
 func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) error {
+	return vote(preferences, choices, b, 1) // add one to increment every pairwise preference
+}
+
+// Unvote removes the Ballot values from the preferences.
+func Unvote[C comparable](preferences []int, choices []C, b Ballot[C]) error {
+	return vote(preferences, choices, b, -1) // subtract one to decrement every pairwise preference
+}
+
+// vote updates the preferences with ballot values according to the passed
+// choices. The weight is the value which is added to the preferences slice
+// values for pairwise wins. If the weight is 1, the ballot is added, and if it
+// is -1 the ballot is removed.
+func vote[C comparable](preferences []int, choices []C, b Ballot[C], weight int) error {
 	ranks, choicesCount, err := ballotRanks(choices, b)
 	if err != nil {
 		return fmt.Errorf("ballot ranks: %w", err)
@@ -37,7 +50,7 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) error {
 		for _, i := range choices1 {
 			for _, choices1 := range rest {
 				for _, j := range choices1 {
-					preferences[int(i)*choicesCount+int(j)]++
+					preferences[int(i)*choicesCount+int(j)] += weight
 				}
 			}
 		}

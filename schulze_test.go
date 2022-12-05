@@ -16,10 +16,14 @@ import (
 )
 
 func TestVoting(t *testing.T) {
+	type ballot[C comparable] struct {
+		ballot schulze.Ballot[C]
+		unvote bool
+	}
 	for _, tc := range []struct {
 		name    string
 		choices []string
-		ballots []schulze.Ballot[string]
+		ballots []ballot[string]
 		result  []schulze.Result[string]
 		tie     bool
 	}{
@@ -37,8 +41,8 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "single option one vote",
 			choices: []string{"A"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 0},
@@ -47,8 +51,8 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "two options one vote",
 			choices: []string{"A", "B"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 1},
@@ -58,9 +62,9 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "two options two votes",
 			choices: []string{"A", "B"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1},
-				{"A": 1, "B": 2},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 1},
@@ -70,10 +74,10 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "three options three votes",
 			choices: []string{"A", "B", "C"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1},
-				{"A": 1, "B": 2},
-				{"A": 1, "B": 2, "C": 3},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 3}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 2},
@@ -84,9 +88,9 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "tie",
 			choices: []string{"A", "B", "C"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1},
-				{"B": 1},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
+				{ballot: schulze.Ballot[string]{"B": 1}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 1},
@@ -98,11 +102,11 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "complex",
 			choices: []string{"A", "B", "C", "D", "E"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1, "B": 1},
-				{"B": 1, "C": 1, "A": 2},
-				{"A": 1, "B": 2, "C": 2},
-				{"A": 1, "B": 200, "C": 10},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 1}},
+				{ballot: schulze.Ballot[string]{"B": 1, "C": 1, "A": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 200, "C": 10}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 4},
@@ -115,11 +119,11 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "duplicate choice", // only the first of the duplicate choices should receive votes
 			choices: []string{"A", "B", "C", "C", "C"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1, "B": 1},
-				{"B": 1, "C": 1, "A": 2},
-				{"A": 1, "B": 2, "C": 2},
-				{"A": 1, "B": 200, "C": 10},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 1}},
+				{ballot: schulze.Ballot[string]{"B": 1, "C": 1, "A": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 200, "C": 10}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "A", Index: 0, Wins: 4},
@@ -132,59 +136,59 @@ func TestVoting(t *testing.T) {
 		{
 			name:    "example from wiki page",
 			choices: []string{"A", "B", "C", "D", "E"},
-			ballots: []schulze.Ballot[string]{
-				{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5},
-				{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5},
-				{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5},
-				{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5},
-				{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "C": 2, "B": 3, "E": 4, "D": 5}},
 
-				{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5},
-				{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5},
-				{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5},
-				{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5},
-				{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5},
+				{ballot: schulze.Ballot[string]{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5}},
+				{ballot: schulze.Ballot[string]{"A": 1, "D": 2, "E": 3, "C": 4, "B": 5}},
 
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
-				{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"B": 1, "E": 2, "D": 3, "A": 4, "C": 5}},
 
-				{"C": 1, "A": 2, "B": 3, "E": 4, "D": 5},
-				{"C": 1, "A": 2, "B": 3, "E": 4, "D": 5},
-				{"C": 1, "A": 2, "B": 3, "E": 4, "D": 5},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "B": 3, "E": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "B": 3, "E": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "B": 3, "E": 4, "D": 5}},
 
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
-				{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "A": 2, "E": 3, "B": 4, "D": 5}},
 
-				{"C": 1, "B": 2, "A": 3, "D": 4, "E": 5},
-				{"C": 1, "B": 2, "A": 3, "D": 4, "E": 5},
+				{ballot: schulze.Ballot[string]{"C": 1, "B": 2, "A": 3, "D": 4, "E": 5}},
+				{ballot: schulze.Ballot[string]{"C": 1, "B": 2, "A": 3, "D": 4, "E": 5}},
 
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
-				{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
+				{ballot: schulze.Ballot[string]{"D": 1, "C": 2, "E": 3, "B": 4, "A": 5}},
 
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
-				{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
+				{ballot: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
 			},
 			result: []schulze.Result[string]{
 				{Choice: "E", Index: 4, Wins: 4},
@@ -194,14 +198,82 @@ func TestVoting(t *testing.T) {
 				{Choice: "D", Index: 3, Wins: 0},
 			},
 		},
+		{
+			name:    "unvote single option one vote",
+			choices: []string{"A"},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
+				{ballot: schulze.Ballot[string]{"A": 1}, unvote: true},
+			},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 0},
+			},
+		},
+		{
+			name:    "unvote two options one vote",
+			choices: []string{"A", "B"},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1}},
+				{ballot: schulze.Ballot[string]{"A": 1}, unvote: true},
+			},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 0},
+				{Choice: "B", Index: 1, Wins: 0},
+			},
+			tie: true,
+		},
+		{
+			name:    "unvote complex",
+			choices: []string{"A", "B", "C", "D", "E"},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 1}},
+				{ballot: schulze.Ballot[string]{"B": 1, "C": 1, "A": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 200, "C": 10}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 2}, unvote: true},
+			},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 3},
+				{Choice: "B", Index: 1, Wins: 2},
+				{Choice: "C", Index: 2, Wins: 2},
+				{Choice: "D", Index: 3, Wins: 0},
+				{Choice: "E", Index: 4, Wins: 0},
+			},
+		},
+		{
+			name:    "multiple unvote complex",
+			choices: []string{"A", "B", "C", "D", "E"},
+			ballots: []ballot[string]{
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 1}},
+				{ballot: schulze.Ballot[string]{"B": 1, "C": 1, "A": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 2}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 1}, unvote: true},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 200, "C": 10}},
+				{ballot: schulze.Ballot[string]{"A": 1, "B": 2, "C": 2}, unvote: true},
+				{ballot: schulze.Ballot[string]{"B": 1, "C": 1, "A": 2}, unvote: true},
+			},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 4},
+				{Choice: "C", Index: 2, Wins: 3},
+				{Choice: "B", Index: 1, Wins: 2},
+				{Choice: "D", Index: 3, Wins: 0},
+				{Choice: "E", Index: 4, Wins: 0},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run("functional", func(t *testing.T) {
 				preferences := schulze.NewPreferences(len(tc.choices))
 
 				for _, b := range tc.ballots {
-					if err := schulze.Vote(preferences, tc.choices, b); err != nil {
-						t.Fatal(err)
+					if b.unvote {
+						if err := schulze.Unvote(preferences, tc.choices, b.ballot); err != nil {
+							t.Fatal(err)
+						}
+					} else {
+						if err := schulze.Vote(preferences, tc.choices, b.ballot); err != nil {
+							t.Fatal(err)
+						}
 					}
 				}
 
@@ -217,8 +289,14 @@ func TestVoting(t *testing.T) {
 				v := schulze.NewVoting(tc.choices)
 
 				for _, b := range tc.ballots {
-					if err := v.Vote(b); err != nil {
-						t.Fatal(err)
+					if b.unvote {
+						if err := v.Unvote(b.ballot); err != nil {
+							t.Fatal(err)
+						}
+					} else {
+						if err := v.Vote(b.ballot); err != nil {
+							t.Fatal(err)
+						}
 					}
 				}
 
