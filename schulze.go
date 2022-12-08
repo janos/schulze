@@ -35,6 +35,30 @@ func Unvote[C comparable](preferences []int, choices []C, b Ballot[C]) error {
 	return vote(preferences, choices, b, -1) // subtract one to decrement every pairwise preference
 }
 
+// SetChoices updates the preferences passed as the first argument by changing
+// its values to accommodate the changes to the choices. It is required to
+// pass the exact choices as the second parameter and complete updated choices
+// as the third argument.
+func SetChoices[C comparable](preferences []int, current, updated []C) []int {
+	currentLength := len(current)
+	updatedLength := len(updated)
+	updatedPreferences := NewPreferences(updatedLength)
+	for iUpdated := 0; iUpdated < updatedLength; iUpdated++ {
+		iCurrent := int(getChoiceIndex(current, updated[iUpdated]))
+		for j := 0; j < updatedLength; j++ {
+			if iUpdated < currentLength && updated[iUpdated] == current[iUpdated] && j < currentLength && updated[j] == current[j] {
+				updatedPreferences[iUpdated*updatedLength+j] = preferences[iUpdated*currentLength+j]
+			} else {
+				jCurrent := int(getChoiceIndex(current, updated[j]))
+				if iCurrent >= 0 && jCurrent >= 0 {
+					updatedPreferences[iUpdated*updatedLength+j] = preferences[iCurrent*currentLength+jCurrent]
+				}
+			}
+		}
+	}
+	return updatedPreferences
+}
+
 // vote updates the preferences with ballot values according to the passed
 // choices. The weight is the value which is added to the preferences slice
 // values for pairwise wins. If the weight is 1, the ballot is added, and if it

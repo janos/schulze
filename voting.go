@@ -32,6 +32,12 @@ func (v *Voting[C]) Unvote(b Ballot[C]) error {
 	return Unvote(v.preferences, v.choices, b)
 }
 
+// SetChoices updates the voting accommodate the changes to the choices. It is
+// required to pass a complete updated choices.
+func (v *Voting[C]) SetChoices(updated []C) {
+	v.preferences = SetChoices(v.preferences, v.choices, updated)
+}
+
 // Compute calculates a sorted list of choices with the total number of wins for
 // each of them. If there are multiple winners, tie boolean parameter is true.
 func (v *Voting[C]) Compute() (results []Result[C], tie bool) {
