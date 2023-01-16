@@ -9,6 +9,7 @@ package schulze
 import (
 	"fmt"
 	"sort"
+	"unsafe"
 )
 
 // NewPreferences initializes a fixed size slice that stores all pairwise
@@ -166,17 +167,27 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 	return ranks, choicesLen, nil
 }
 
-func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []strength {
+const intSize = unsafe.Sizeof(int(0))
+
+func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []int {
 	choicesCount := len(choices)
 
-	strengths := make([]strength, choicesCount*choicesCount)
+	if choicesCount == 0 {
+		return nil
+	}
+
+	strengths := make([]int, choicesCount*choicesCount)
+
+	strengthsPtr := unsafe.Pointer(&strengths[0])
 
 	for i := 0; i < choicesCount; i++ {
 		for j := 0; j < choicesCount; j++ {
 			if i != j {
-				c := preferences[i*choicesCount+j]
-				if c > preferences[j*choicesCount+i] {
-					strengths[i*choicesCount+j] = strength(c)
+				ij := i*choicesCount + j
+				ji := j*choicesCount + i
+				c := preferences[ij]
+				if c > preferences[ji] {
+					*(*int)(unsafe.Add(strengthsPtr, uintptr(ij)*intSize)) = c
 				}
 			}
 		}
@@ -184,19 +195,21 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 
 	for i := 0; i < choicesCount; i++ {
 		for j := 0; j < choicesCount; j++ {
-			if i != j {
-				for k := 0; k < choicesCount; k++ {
-					if (i != k) && (j != k) {
-						jk := j*choicesCount + k
-						strengths[jk] = max(
-							strengths[jk],
-							min(
-								strengths[j*choicesCount+i],
-								strengths[i*choicesCount+k],
-							),
-						)
-					}
-				}
+			// removed unnecessary check for optimization: if i == j { continue }
+			for k := 0; k < choicesCount; k++ {
+				// removed unnecessary check for optimization: if i == k || j == k { continue }
+				jk := j*choicesCount + k
+				ji := j*choicesCount + i
+				ik := i*choicesCount + k
+				jkp := (*int)(unsafe.Add(strengthsPtr, uintptr(jk)*intSize))
+				m := max(
+					*jkp,
+					min(
+						*(*int)(unsafe.Add(strengthsPtr, uintptr(ji)*intSize)),
+						*(*int)(unsafe.Add(strengthsPtr, uintptr(ik)*intSize)),
+					),
+				)
+				*(jkp) = m
 			}
 		}
 	}
@@ -204,7 +217,7 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 	return strengths
 }
 
-func calculateResults[C comparable](choices []C, strengths []strength) (results []Result[C], tie bool) {
+func calculateResults[C comparable](choices []C, strengths []int) (results []Result[C], tie bool) {
 	choicesCount := len(choices)
 	results = make([]Result[C], 0, choicesCount)
 
@@ -236,16 +249,14 @@ func calculateResults[C comparable](choices []C, strengths []strength) (results 
 	return results, tie
 }
 
-type strength int
-
-func min(a, b strength) strength {
+func min(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func max(a, b strength) strength {
+func max(a, b int) int {
 	if a > b {
 		return a
 	}
