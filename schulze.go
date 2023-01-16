@@ -182,13 +182,12 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 
 	for i := 0; i < choicesCount; i++ {
 		for j := 0; j < choicesCount; j++ {
-			if i != j {
-				ij := i*choicesCount + j
-				ji := j*choicesCount + i
-				c := preferences[ij]
-				if c > preferences[ji] {
-					*(*int)(unsafe.Add(strengthsPtr, uintptr(ij)*intSize)) = c
-				}
+			// removed unnecessary check for optimization: if i == j { continue }
+			ij := i*choicesCount + j
+			ji := j*choicesCount + i
+			c := preferences[ij]
+			if c > preferences[ji] {
+				*(*int)(unsafe.Add(strengthsPtr, uintptr(ij)*intSize)) = c
 			}
 		}
 	}
