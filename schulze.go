@@ -170,7 +170,7 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 const intSize = unsafe.Sizeof(int(0))
 
 func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []int {
-	choicesCount := len(choices)
+	choicesCount := uintptr(len(choices))
 
 	if choicesCount == 0 {
 		return nil
@@ -180,32 +180,32 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 
 	strengthsPtr := unsafe.Pointer(&strengths[0])
 
-	for i := 0; i < choicesCount; i++ {
-		for j := 0; j < choicesCount; j++ {
+	for i := uintptr(0); i < choicesCount; i++ {
+		for j := uintptr(0); j < choicesCount; j++ {
 			// removed unnecessary check for optimization: if i == j { continue }
 			ij := i*choicesCount + j
 			ji := j*choicesCount + i
 			c := preferences[ij]
 			if c > preferences[ji] {
-				*(*int)(unsafe.Add(strengthsPtr, uintptr(ij)*intSize)) = c
+				*(*int)(unsafe.Add(strengthsPtr, ij*intSize)) = c
 			}
 		}
 	}
 
-	for i := 0; i < choicesCount; i++ {
-		for j := 0; j < choicesCount; j++ {
+	for i := uintptr(0); i < choicesCount; i++ {
+		for j := uintptr(0); j < choicesCount; j++ {
 			// removed unnecessary check for optimization: if i == j { continue }
-			for k := 0; k < choicesCount; k++ {
+			for k := uintptr(0); k < choicesCount; k++ {
 				// removed unnecessary check for optimization: if i == k || j == k { continue }
 				jk := j*choicesCount + k
 				ji := j*choicesCount + i
 				ik := i*choicesCount + k
-				jkp := (*int)(unsafe.Add(strengthsPtr, uintptr(jk)*intSize))
+				jkp := (*int)(unsafe.Add(strengthsPtr, jk*intSize))
 				m := max(
 					*jkp,
 					min(
-						*(*int)(unsafe.Add(strengthsPtr, uintptr(ji)*intSize)),
-						*(*int)(unsafe.Add(strengthsPtr, uintptr(ik)*intSize)),
+						*(*int)(unsafe.Add(strengthsPtr, ji*intSize)),
+						*(*int)(unsafe.Add(strengthsPtr, ik*intSize)),
 					),
 				)
 				*(jkp) = m
