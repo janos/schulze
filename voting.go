@@ -22,14 +22,15 @@ func NewVoting[C comparable](choices []C) *Voting[C] {
 	}
 }
 
-// Vote adds a voting preferences by a single voting ballot.
-func (v *Voting[C]) Vote(b Ballot[C]) error {
+// Vote adds a voting preferences by a single voting ballot. A record of a
+// complete and normalized preferences is returned that can be used to unvote.
+func (v *Voting[C]) Vote(b Ballot[C]) (Record[C], error) {
 	return Vote(v.preferences, v.choices, b)
 }
 
 // Unvote removes a voting preferences from a single voting ballot.
-func (v *Voting[C]) Unvote(b Ballot[C]) error {
-	return Unvote(v.preferences, v.choices, b)
+func (v *Voting[C]) Unvote(r Record[C]) error {
+	return Unvote(v.preferences, v.choices, r)
 }
 
 // SetChoices updates the voting accommodate the changes to the choices. It is

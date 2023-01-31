@@ -16,7 +16,7 @@ import (
 func TestVoting_Vote_UnknownChoiceError(t *testing.T) {
 	v := schulze.NewVoting([]int{0, 2, 5, 7})
 
-	err := v.Vote(schulze.Ballot[int]{20: 1})
+	_, err := v.Vote(schulze.Ballot[int]{20: 1})
 	var verr *schulze.UnknownChoiceError[int]
 	if !errors.As(err, &verr) {
 		t.Fatalf("got error %v, want UnknownChoiceError", err)
@@ -33,7 +33,7 @@ func TestVote_UnknownChoiceError(t *testing.T) {
 	choices := []int{0, 2, 5, 7}
 	preferences := schulze.NewPreferences(len(choices))
 
-	err := schulze.Vote(choices, preferences, schulze.Ballot[int]{20: 1})
+	_, err := schulze.Vote(choices, preferences, schulze.Ballot[int]{20: 1})
 	var verr *schulze.UnknownChoiceError[int]
 	if !errors.As(err, &verr) {
 		t.Fatalf("got error %v, want UnknownChoiceError", err)
