@@ -17,14 +17,14 @@ func ExampleVoting() {
 	v := schulze.NewVoting([]string{"A", "B", "C"})
 
 	// First vote.
-	if err := v.Vote(schulze.Ballot[string]{
+	if _, err := v.Vote(schulze.Ballot[string]{
 		"A": 1,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Second vote.
-	if err := v.Vote(schulze.Ballot[string]{
+	if _, err := v.Vote(schulze.Ballot[string]{
 		"A": 1,
 		"B": 1,
 		"C": 2,
@@ -48,14 +48,14 @@ func ExampleNewPreferences() {
 	preferences := schulze.NewPreferences(len(choices))
 
 	// First vote.
-	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+	if _, err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
 		"A": 1,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Second vote.
-	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+	if _, err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
 		"A": 1,
 		"B": 1,
 		"C": 2,
