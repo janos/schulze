@@ -316,28 +316,80 @@ func TestVoting(t *testing.T) {
 }
 
 func TestUnvote_afterSetChoices(t *testing.T) {
-	choices := []string{"A", "B", "C"}
-	preferences := schulze.NewPreferences(len(choices))
+	t.Run("add", func(t *testing.T) {
+		choices := []string{"A", "B", "C"}
+		preferences := schulze.NewPreferences(len(choices))
 
-	ballot := schulze.Ballot[string]{"A": 1, "B": 2}
-	report, err := schulze.Vote(preferences, choices, ballot)
-	if err != nil {
-		t.Fatal(err)
-	}
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	updatedChoices := []string{"A", "D", "B", "C"}
+		updatedChoices := []string{"A", "D", "B", "C"}
 
-	updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
 
-	if err := schulze.Unvote(updatedPreferences, updatedChoices, report); err != nil {
-		t.Fatal(err)
-	}
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
 
-	wantPreferences := make([]int, len(updatedPreferences))
+		wantPreferences := make([]int, len(updatedPreferences))
 
-	if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
-		t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
-	}
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
+
+	t.Run("remove", func(t *testing.T) {
+		choices := []string{"A", "B", "C"}
+		preferences := schulze.NewPreferences(len(choices))
+
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		updatedChoices := []string{"A", "C"}
+
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
+
+		wantPreferences := make([]int, len(updatedPreferences))
+
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
+
+	t.Run("rearrange", func(t *testing.T) {
+		choices := []string{"A", "B", "C"}
+		preferences := schulze.NewPreferences(len(choices))
+
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		updatedChoices := []string{"B", "A", "C"}
+
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
+
+		wantPreferences := make([]int, len(updatedPreferences))
+
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
 }
 
 func TestSetChoices(t *testing.T) {

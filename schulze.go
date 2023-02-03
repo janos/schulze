@@ -71,9 +71,15 @@ func Unvote[C comparable](preferences []int, choices []C, r Record[C]) error {
 		rest := r[rank+1:]
 		for _, choice1 := range choices1 {
 			i := getChoiceIndex(choices, choice1)
+			if i < 0 {
+				continue
+			}
 			for _, choices1 := range rest {
 				for _, choice2 := range choices1 {
 					j := getChoiceIndex(choices, choice2)
+					if j < 0 {
+						continue
+					}
 					preferences[int(i)*choicesCount+int(j)] -= 1
 				}
 			}
