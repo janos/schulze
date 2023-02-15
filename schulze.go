@@ -150,7 +150,7 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 	ballotRanks := make(map[int][]choiceIndex, ballotLen)
 	var rankedChoices bitSet
 	if hasUnrankedChoices {
-		rankedChoices = newBitset(uint(choicesLen))
+		rankedChoices = newBitset(uint64(choicesLen))
 	}
 
 	choicesLen = len(choices)
@@ -163,7 +163,7 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 		ballotRanks[rank] = append(ballotRanks[rank], index)
 
 		if hasUnrankedChoices {
-			rankedChoices.set(uint(index))
+			rankedChoices.set(uint64(index))
 		}
 	}
 
@@ -183,7 +183,10 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 
 	if hasUnrankedChoices {
 		unranked := make([]choiceIndex, 0, choicesLen-ballotLen)
-		for i := uint(0); int(i) < choicesLen; i++ {
+		// rankedChoices.iterateUnset(func(i uint64) {
+		// 	unranked = append(unranked, choiceIndex(i))
+		// })
+		for i := uint64(0); int(i) < choicesLen; i++ {
 			if !rankedChoices.isSet(i) {
 				unranked = append(unranked, choiceIndex(i))
 			}
