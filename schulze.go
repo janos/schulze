@@ -176,16 +176,17 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 		return rankNumbers[i] < rankNumbers[j]
 	})
 
-	ranks = make([][]choiceIndex, 0, len(rankNumbers))
+	if hasUnrankedChoices {
+		ranks = make([][]choiceIndex, 0, len(rankNumbers)+1)
+	} else {
+		ranks = make([][]choiceIndex, 0, len(rankNumbers))
+	}
 	for _, rankNumber := range rankNumbers {
 		ranks = append(ranks, ballotRanks[rankNumber])
 	}
 
 	if hasUnrankedChoices {
 		unranked := make([]choiceIndex, 0, choicesLen-ballotLen)
-		// rankedChoices.iterateUnset(func(i uint64) {
-		// 	unranked = append(unranked, choiceIndex(i))
-		// })
 		for i := uint64(0); int(i) < choicesLen; i++ {
 			if !rankedChoices.isSet(i) {
 				unranked = append(unranked, choiceIndex(i))
