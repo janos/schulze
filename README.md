@@ -16,14 +16,20 @@ White paper [Markus Schulze, "The Schulze Method of Voting"](https://arxiv.org/p
 
 The act of voting represents calling the `Vote` function with a `Ballot` map where keys in the map are choices and values are their rankings. Lowest number represents the highest rank. Not all choices have to be ranked and multiple choices can have the same rank. Ranks do not have to be in consecutive order.
 
+### Additional features
+
+This implementation of Schulze voting method adds capabilities to
+
+- remove the ballot from voting results, allowing the vote to be changed
+- add, remove or rearrange choices at any time during the voting process, while preserving consistency of the state just as the choices were present from the beginning.
+
 `Unvote` function allows to update the pairwise preferences in a way to cancel the previously added `Ballot` to preferences using `Vote` function. It is useful to change the vote without the need to re-vote all ballots.
 
-`SetChoices` allows to update the pairwise preferences if the choices has to be changed during voting. New choices can be added, existing choices can be removed or rearranged. New choices will have no preferences against existing choices, neither existing choices will have preferences against the new choices.
+`SetChoices` allows to update the pairwise preferences if the choices has to be changed during voting. New choices can be added, existing choices can be removed or rearranged. New choices are ranked as previous ballots did not rank them or were ranked the last, as they were present in initial choices but were not ranked in any ballots.
 
 ## Voting
 
 `Voting` holds number of votes for every pair of choices. It is a convenient construct to use when the preferences slice does not have to be exposed, and should be kept safe from accidental mutation. Methods on the Voting type are not safe for concurrent calls.
-
 
 ## Example
 
@@ -31,38 +37,38 @@ The act of voting represents calling the `Vote` function with a `Ballot` map whe
 package main
 
 import (
-	"fmt"
-	"log"
+ "fmt"
+ "log"
 
-	"resenje.org/schulze"
+ "resenje.org/schulze"
 )
 
 func main() {
-	choices := []string{"A", "B", "C"}
-	preferences := schulze.NewPreferences(len(choices))
+ choices := []string{"A", "B", "C"}
+ preferences := schulze.NewPreferences(len(choices))
 
-	// First vote.
-	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
-		"A": 1,
-	}); err != nil {
-		log.Fatal(err)
-	}
+ // First vote.
+ if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+  "A": 1,
+ }); err != nil {
+  log.Fatal(err)
+ }
 
-	// Second vote.
-	if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
-		"A": 1,
-		"B": 1,
-		"C": 2,
-	}); err != nil {
-		log.Fatal(err)
-	}
+ // Second vote.
+ if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+  "A": 1,
+  "B": 1,
+  "C": 2,
+ }); err != nil {
+  log.Fatal(err)
+ }
 
-	// Calculate the result.
-	result, tie := schulze.Compute(preferences, choices)
-	if tie {
-		log.Fatal("tie")
-	}
-	fmt.Println("winner:", result[0].Choice)
+ // Calculate the result.
+ result, tie := schulze.Compute(preferences, choices)
+ if tie {
+  log.Fatal("tie")
+ }
+ fmt.Println("winner:", result[0].Choice)
 }
 ```
 

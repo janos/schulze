@@ -34,7 +34,7 @@ type Record[C comparable] [][]C
 // values. A record of a complete and normalized preferences is returned that
 // can be used to unvote.
 func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C], error) {
-	ranks, choicesCount, err := ballotRanks(choices, b)
+	ranks, choicesCount, hasUnrankedChoices, err := ballotRanks(choices, b)
 	if err != nil {
 		return nil, fmt.Errorf("ballot ranks: %w", err)
 	}
@@ -47,6 +47,27 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C],
 					preferences[int(i)*choicesCount+int(j)] += 1
 				}
 			}
+		}
+	}
+
+	// set diagonal values as the values of the column of the least ranked
+	// choice to be able to have the correct preferences matrix when adding new
+	// choices
+	if hasUnrankedChoices {
+		// treat the diagonal values as one of the unranked choices,
+		// deprioritizing all choices except unranked as they are of the same
+		if l := len(ranks); l > 0 {
+			for _, choices1 := range ranks[:l-1] {
+				for _, i := range choices1 {
+					preferences[int(i)*choicesCount+int(i)] += 1
+				}
+			}
+		}
+	} else {
+		// all choices are ranked, tread diagonal values as a single not ranked
+		// choice, deprioritizing them for all existing choices
+		for i := 0; i < choicesCount; i++ {
+			preferences[int(i)*choicesCount+int(i)] += 1
 		}
 	}
 
@@ -67,6 +88,11 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C],
 func Unvote[C comparable](preferences []int, choices []C, r Record[C]) error {
 	choicesCount := len(choices)
 
+	recordLength := len(r)
+	if recordLength == 0 {
+		return nil
+	}
+
 	for rank, choices1 := range r {
 		rest := r[rank+1:]
 		for _, choice1 := range choices1 {
@@ -80,6 +106,40 @@ func Unvote[C comparable](preferences []int, choices []C, r Record[C]) error {
 					if j < 0 {
 						continue
 					}
+					preferences[int(i)*choicesCount+int(j)] -= 1
+				}
+			}
+		}
+	}
+
+	knownChoices := newBitset(uint64(choicesCount))
+	rankedChoices := newBitset(uint64(choicesCount))
+	// remove voting from the ranked choices of the Record
+	for _, choices1 := range r[:recordLength-1] {
+		for _, choice1 := range choices1 {
+			i := getChoiceIndex(choices, choice1)
+			if i < 0 {
+				continue
+			}
+			preferences[int(i)*choicesCount+int(i)] -= 1
+			knownChoices.set(uint64(i))
+			rankedChoices.set(uint64(i))
+		}
+	}
+	// mark the rest of the known choices in the Record
+	for _, choice1 := range r[recordLength-1] {
+		i := getChoiceIndex(choices, choice1)
+		if i < 0 {
+			continue
+		}
+		knownChoices.set(uint64(i))
+	}
+
+	// remove votes of the choices that were added after the Record
+	for i := uint64(0); int(i) < choicesCount; i++ {
+		if rankedChoices.isSet(i) {
+			for j := uint64(0); int(j) < choicesCount; j++ {
+				if !knownChoices.isSet(j) {
 					preferences[int(i)*choicesCount+int(j)] -= 1
 				}
 			}
@@ -104,8 +164,15 @@ func SetChoices[C comparable](preferences []int, current, updated []C) []int {
 				updatedPreferences[iUpdated*updatedLength+j] = preferences[iUpdated*currentLength+j]
 			} else {
 				jCurrent := int(getChoiceIndex(current, updated[j]))
-				if iCurrent >= 0 && jCurrent >= 0 {
-					updatedPreferences[iUpdated*updatedLength+j] = preferences[iCurrent*currentLength+jCurrent]
+				if iCurrent >= 0 {
+					if jCurrent >= 0 {
+						updatedPreferences[iUpdated*updatedLength+j] = preferences[iCurrent*currentLength+jCurrent]
+					} else {
+						// set the column of the new choice to the values of the
+						// preferences' diagonal values, just as nobody voted for the
+						// new choice to ensure consistency
+						updatedPreferences[iUpdated*updatedLength+j] = preferences[iCurrent*currentLength+iCurrent]
+					}
 				}
 			}
 		}
@@ -142,10 +209,10 @@ func getChoiceIndex[C comparable](choices []C, choice C) choiceIndex {
 	return -1
 }
 
-func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex, choicesLen int, err error) {
+func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex, choicesLen int, hasUnrankedChoices bool, err error) {
 	choicesLen = len(choices)
 	ballotLen := len(b)
-	hasUnrankedChoices := ballotLen != choicesLen
+	hasUnrankedChoices = ballotLen != choicesLen
 
 	ballotRanks := make(map[int][]choiceIndex, ballotLen)
 	var rankedChoices bitSet
@@ -158,7 +225,7 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 	for choice, rank := range b {
 		index := getChoiceIndex(choices, choice)
 		if index < 0 {
-			return nil, 0, &UnknownChoiceError[C]{Choice: choice}
+			return nil, 0, false, &UnknownChoiceError[C]{Choice: choice}
 		}
 		ballotRanks[rank] = append(ballotRanks[rank], index)
 
@@ -197,7 +264,7 @@ func ballotRanks[C comparable](choices []C, b Ballot[C]) (ranks [][]choiceIndex,
 		}
 	}
 
-	return ranks, choicesLen, nil
+	return ranks, choicesLen, hasUnrankedChoices, nil
 }
 
 const intSize = unsafe.Sizeof(int(0))

@@ -226,6 +226,18 @@ func TestVoting(t *testing.T) {
 			tie: true,
 		},
 		{
+			name:    "empty unvote two options one vote",
+			choices: []string{"A", "B"},
+			ballots: []ballot[string]{
+				{vote: schulze.Ballot[string]{"A": 1}},
+				{unvote: schulze.Record[string]{}},
+			},
+			result: []schulze.Result[string]{
+				{Choice: "A", Index: 0, Wins: 1},
+				{Choice: "B", Index: 1, Wins: 0},
+			},
+		},
+		{
 			name:    "unvote complex",
 			choices: []string{"A", "B", "C", "D", "E"},
 			ballots: []ballot[string]{
@@ -326,13 +338,19 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		t.Logf("initial\n%v", sprintPreferences(choices, preferences))
+
 		updatedChoices := []string{"A", "D", "B", "C"}
 
 		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
 
+		t.Logf("updated\n%v", sprintPreferences(updatedChoices, updatedPreferences))
+
 		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
 			t.Fatal(err)
 		}
+
+		t.Logf("unvoted\n%v\n%v", sprintPreferences(updatedChoices, updatedPreferences), record)
 
 		wantPreferences := make([]int, len(updatedPreferences))
 
@@ -390,6 +408,37 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
 		}
 	})
+
+	t.Run("complex", func(t *testing.T) {
+		choices := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+		preferences := schulze.NewPreferences(len(choices))
+
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 2, "D": 3, "E": 3, "F": 3, "G": 3}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("initial\n%v", sprintPreferences(choices, preferences))
+
+		updatedChoices := []string{"A", "K", "C", "E", "D", "G", "H", "J"}
+
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+
+		t.Logf("updated\n%v", sprintPreferences(updatedChoices, updatedPreferences))
+
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("unvoted\n%v\n%v", sprintPreferences(updatedChoices, updatedPreferences), record)
+
+		wantPreferences := make([]int, len(updatedPreferences))
+
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
 }
 
 func TestSetChoices(t *testing.T) {
@@ -399,7 +448,7 @@ func TestSetChoices(t *testing.T) {
 		if fmt.Sprint(updatedPreferences) != fmt.Sprint(validationPreferences) {
 			t.Errorf("\ngot preferences\n%v\nwant\n%v\nbased on\n%v\n", sprintPreferences(updatedChoices, updatedPreferences), sprintPreferences(updatedChoices, validationPreferences), sprintPreferences(currentChoices, currentPreferences))
 		} else {
-			t.Logf("\nnupdated preferences\n%v\nvalidation preferences\n%v\nbased on\n%v\n", sprintPreferences(updatedChoices, updatedPreferences), sprintPreferences(updatedChoices, validationPreferences), sprintPreferences(currentChoices, currentPreferences))
+			t.Logf("\nupdated preferences\n%v\nvalidation preferences\n%v\nbased on\n%v\n", sprintPreferences(updatedChoices, updatedPreferences), sprintPreferences(updatedChoices, validationPreferences), sprintPreferences(currentChoices, currentPreferences))
 		}
 	}
 
@@ -786,11 +835,14 @@ func TestSetChoices(t *testing.T) {
 				}
 
 				// annulate wins for the unknown choices in validation preferences
-				for i := 0; i < updatedChoicesCount; i++ {
-					for _, j := range indexesOfNewChoices(tc.current, tc.updated) {
-						validationPreferences[i*updatedChoicesCount+j] = 0
-					}
-				}
+				// for i := 0; i < updatedChoicesCount; i++ {
+				// 	for _, j := range indexesOfNewChoices(tc.current, tc.updated) {
+				// 		if i == 0 && j == 0 {
+				// 			continue
+				// 		}
+				// 		validationPreferences[i*updatedChoicesCount+j] = 0
+				// 	}
+				// }
 
 				updatedPreferences := schulze.SetChoices(currentPreferences, tc.current, tc.updated)
 
@@ -812,14 +864,17 @@ func TestSetChoices(t *testing.T) {
 					}
 				}
 
-				// annulate wins for the unknown choices in validation preferences
-				updatedChoicesCount := len(tc.updated)
 				validationPreferences := validationVoting.Preferences()
-				for i := 0; i < updatedChoicesCount; i++ {
-					for _, j := range indexesOfNewChoices(tc.current, tc.updated) {
-						validationPreferences[i*updatedChoicesCount+j] = 0
-					}
-				}
+				// annulate wins for the unknown choices in validation preferences
+				// updatedChoicesCount := len(tc.updated)
+				// for i := 0; i < updatedChoicesCount; i++ {
+				// 	for _, j := range indexesOfNewChoices(tc.current, tc.updated) {
+				// 		if i == 0 && j == 0 {
+				// 			continue
+				// 		}
+				// 		validationPreferences[i*updatedChoicesCount+j] = 0
+				// 	}
+				// }
 
 				currentVoting.SetChoices(tc.updated)
 				updatedPreferences := currentVoting.Preferences()
@@ -872,7 +927,7 @@ func BenchmarkVote(b *testing.B) {
 }
 
 func BenchmarkVoting_Results(b *testing.B) {
-	rand.Seed(time.Now().UnixNano())
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	const choicesCount = 100
 
@@ -882,12 +937,12 @@ func BenchmarkVoting_Results(b *testing.B) {
 
 	for i := 0; i < 1000; i++ {
 		ballot := make(schulze.Ballot[string])
-		ballot[choices[rand.Intn(choicesCount)]] = 1
-		ballot[choices[rand.Intn(choicesCount)]] = 1
-		ballot[choices[rand.Intn(choicesCount)]] = 2
-		ballot[choices[rand.Intn(choicesCount)]] = 3
-		ballot[choices[rand.Intn(choicesCount)]] = 20
-		ballot[choices[rand.Intn(choicesCount)]] = 20
+		ballot[choices[random.Intn(choicesCount)]] = 1
+		ballot[choices[random.Intn(choicesCount)]] = 1
+		ballot[choices[random.Intn(choicesCount)]] = 2
+		ballot[choices[random.Intn(choicesCount)]] = 3
+		ballot[choices[random.Intn(choicesCount)]] = 20
+		ballot[choices[random.Intn(choicesCount)]] = 20
 		if _, err := v.Vote(ballot); err != nil {
 			b.Fatal(err)
 		}
@@ -901,7 +956,7 @@ func BenchmarkVoting_Results(b *testing.B) {
 }
 
 func BenchmarkResults(b *testing.B) {
-	rand.Seed(time.Now().UnixNano())
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	const choicesCount = 100
 
@@ -910,12 +965,12 @@ func BenchmarkResults(b *testing.B) {
 
 	for i := 0; i < 1000; i++ {
 		ballot := make(schulze.Ballot[string])
-		ballot[choices[rand.Intn(choicesCount)]] = 1
-		ballot[choices[rand.Intn(choicesCount)]] = 1
-		ballot[choices[rand.Intn(choicesCount)]] = 2
-		ballot[choices[rand.Intn(choicesCount)]] = 3
-		ballot[choices[rand.Intn(choicesCount)]] = 20
-		ballot[choices[rand.Intn(choicesCount)]] = 20
+		ballot[choices[random.Intn(choicesCount)]] = 1
+		ballot[choices[random.Intn(choicesCount)]] = 1
+		ballot[choices[random.Intn(choicesCount)]] = 2
+		ballot[choices[random.Intn(choicesCount)]] = 3
+		ballot[choices[random.Intn(choicesCount)]] = 20
+		ballot[choices[random.Intn(choicesCount)]] = 20
 		if _, err := schulze.Vote(preferences, choices, ballot); err != nil {
 			b.Fatal(err)
 		}
@@ -956,15 +1011,6 @@ func randomBallots[C comparable](t *testing.T, choices []C, count int) []schulze
 	}
 
 	return ballots
-}
-
-func indexesOfNewChoices[C comparable](old, new []C) (indexes []int) {
-	for i, c := range new {
-		if !contains(old, c) {
-			indexes = append(indexes, i)
-		}
-	}
-	return indexes
 }
 
 func removedChoices[C comparable](old, new []C) (removed []C) {
