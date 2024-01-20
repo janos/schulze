@@ -38,7 +38,7 @@ func TestVoting(t *testing.T) {
 			name:    "single option no votes",
 			choices: []string{"A"},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -48,7 +48,7 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"A": 1}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -58,8 +58,8 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"A": 1}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 1},
-				{Choice: "B", Index: 1, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 1, Strength: 1, Advantage: 1},
+				{Choice: "B", Index: 1, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -70,8 +70,8 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"A": 1, "B": 2}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 1},
-				{Choice: "B", Index: 1, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 1, Strength: 2, Advantage: 2},
+				{Choice: "B", Index: 1, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -83,9 +83,9 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"A": 1, "B": 2, "C": 3}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 2},
-				{Choice: "B", Index: 1, Wins: 1},
-				{Choice: "C", Index: 2, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 2, Strength: 6, Advantage: 6},
+				{Choice: "B", Index: 1, Wins: 1, Strength: 2, Advantage: 2},
+				{Choice: "C", Index: 2, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -96,9 +96,9 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"B": 1}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 1},
-				{Choice: "B", Index: 1, Wins: 1},
-				{Choice: "C", Index: 2, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 1, Strength: 1, Advantage: 1},
+				{Choice: "B", Index: 1, Wins: 1, Strength: 1, Advantage: 1},
+				{Choice: "C", Index: 2, Wins: 0, Strength: 0, Advantage: 0},
 			},
 			tie: true,
 		},
@@ -112,11 +112,11 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"A": 1, "B": 200, "C": 10}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 4},
-				{Choice: "B", Index: 1, Wins: 2},
-				{Choice: "C", Index: 2, Wins: 2},
-				{Choice: "D", Index: 3, Wins: 0},
-				{Choice: "E", Index: 4, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 4, Strength: 13, Advantage: 13},
+				{Choice: "B", Index: 1, Wins: 2, Strength: 8, Advantage: 8},
+				{Choice: "C", Index: 2, Wins: 2, Strength: 6, Advantage: 6},
+				{Choice: "D", Index: 3, Wins: 0, Strength: 0, Advantage: 0},
+				{Choice: "E", Index: 4, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -129,11 +129,11 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"A": 1, "B": 200, "C": 10}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 4},
-				{Choice: "B", Index: 1, Wins: 2},
-				{Choice: "C", Index: 2, Wins: 2},
-				{Choice: "C", Index: 3, Wins: 0},
-				{Choice: "C", Index: 4, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 4, Strength: 13, Advantage: 13},
+				{Choice: "B", Index: 1, Wins: 2, Strength: 8, Advantage: 8},
+				{Choice: "C", Index: 2, Wins: 2, Strength: 6, Advantage: 6},
+				{Choice: "C", Index: 3, Wins: 0, Strength: 0, Advantage: 0},
+				{Choice: "C", Index: 4, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -194,11 +194,11 @@ func TestVoting(t *testing.T) {
 				{vote: schulze.Ballot[string]{"E": 1, "B": 2, "A": 3, "D": 4, "C": 5}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "E", Index: 4, Wins: 4},
-				{Choice: "A", Index: 0, Wins: 3},
-				{Choice: "C", Index: 2, Wins: 2},
-				{Choice: "B", Index: 1, Wins: 1},
-				{Choice: "D", Index: 3, Wins: 0},
+				{Choice: "E", Index: 4, Wins: 4, Strength: 112, Advantage: 16},
+				{Choice: "A", Index: 0, Wins: 3, Strength: 86, Advantage: 11},
+				{Choice: "C", Index: 2, Wins: 2, Strength: 58, Advantage: 2},
+				{Choice: "B", Index: 1, Wins: 1, Strength: 33, Advantage: 5},
+				{Choice: "D", Index: 3, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -209,7 +209,7 @@ func TestVoting(t *testing.T) {
 				{unvote: schulze.Record[string]{{"A"}}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -220,8 +220,8 @@ func TestVoting(t *testing.T) {
 				{unvote: schulze.Record[string]{{"A"}, {"B"}}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 0},
-				{Choice: "B", Index: 1, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 0, Strength: 0, Advantage: 0},
+				{Choice: "B", Index: 1, Wins: 0, Strength: 0, Advantage: 0},
 			},
 			tie: true,
 		},
@@ -233,8 +233,8 @@ func TestVoting(t *testing.T) {
 				{unvote: schulze.Record[string]{}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 1},
-				{Choice: "B", Index: 1, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 1, Strength: 1, Advantage: 1},
+				{Choice: "B", Index: 1, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -248,11 +248,11 @@ func TestVoting(t *testing.T) {
 				{unvote: schulze.Record[string]{{"A"}, {"B", "C"}, {"D", "E"}}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 3},
-				{Choice: "B", Index: 1, Wins: 2},
-				{Choice: "C", Index: 2, Wins: 2},
-				{Choice: "D", Index: 3, Wins: 0},
-				{Choice: "E", Index: 4, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 3, Strength: 8, Advantage: 8},
+				{Choice: "B", Index: 1, Wins: 2, Strength: 6, Advantage: 6},
+				{Choice: "C", Index: 2, Wins: 2, Strength: 4, Advantage: 4},
+				{Choice: "D", Index: 3, Wins: 0, Strength: 0, Advantage: 0},
+				{Choice: "E", Index: 4, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 		{
@@ -268,11 +268,11 @@ func TestVoting(t *testing.T) {
 				{unvote: schulze.Record[string]{{"B", "C"}, {"A"}, {"D", "E"}}},
 			},
 			result: []schulze.Result[string]{
-				{Choice: "A", Index: 0, Wins: 4},
-				{Choice: "C", Index: 2, Wins: 3},
-				{Choice: "B", Index: 1, Wins: 2},
-				{Choice: "D", Index: 3, Wins: 0},
-				{Choice: "E", Index: 4, Wins: 0},
+				{Choice: "A", Index: 0, Wins: 4, Strength: 4, Advantage: 4},
+				{Choice: "C", Index: 2, Wins: 3, Strength: 3, Advantage: 3},
+				{Choice: "B", Index: 1, Wins: 2, Strength: 2, Advantage: 2},
+				{Choice: "D", Index: 3, Wins: 0, Strength: 0, Advantage: 0},
+				{Choice: "E", Index: 4, Wins: 0, Strength: 0, Advantage: 0},
 			},
 		},
 	} {

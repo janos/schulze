@@ -188,6 +188,18 @@ type Result[C comparable] struct {
 	Index int
 	// Number of wins in pairwise comparisons to other choices votings.
 	Wins int
+	// Total number of votes in wins in pairwise comparisons to other choices
+	// votings.
+	// Strength does not effect the winner, and may be less then the
+	// Strength of the choice with more wins.
+	Strength int
+	// Total number of preferred votes (difference between votes of the winner
+	// choice and the opponent choice) in wins in pairwise comparisons to other
+	// choices votings. Advantage does not effect the winner, and may be less
+	// then the Advantage of the choice with more wins. The code with less wins
+	// and greater Advantage had stronger but fewer wins and that information
+	// can be taken into the analysis of the results.
+	Advantage int
 }
 
 // Compute calculates a sorted list of choices with the total number of wins for
@@ -324,24 +336,38 @@ func calculateResults[C comparable](choices []C, strengths []int) (results []Res
 	results = make([]Result[C], 0, choicesCount)
 
 	for i := 0; i < choicesCount; i++ {
-		var count int
+		var wins int
+		var popularity int
+		var advantage int
 
 		for j := 0; j < choicesCount; j++ {
 			if i != j {
-				if strengths[i*choicesCount+j] > strengths[j*choicesCount+i] {
-					count++
+				sij := strengths[i*choicesCount+j]
+				sji := strengths[j*choicesCount+i]
+				if sij > sji {
+					wins++
+					popularity += sij
+					advantage += sij - sji
 				}
 			}
 		}
-		results = append(results, Result[C]{Choice: choices[i], Index: i, Wins: count})
-
+		results = append(results, Result[C]{
+			Choice:    choices[i],
+			Index:     i,
+			Wins:      wins,
+			Strength:  popularity,
+			Advantage: advantage,
+		})
 	}
 
 	sort.Slice(results, func(i, j int) bool {
-		if results[i].Wins == results[j].Wins {
-			return results[i].Index < results[j].Index
+		if results[i].Wins != results[j].Wins {
+			return results[i].Wins > results[j].Wins
 		}
-		return results[i].Wins > results[j].Wins
+		if results[i].Strength != results[j].Strength {
+			return results[i].Strength > results[j].Strength
+		}
+		return results[i].Index < results[j].Index
 	})
 
 	if len(results) >= 2 {
