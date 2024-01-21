@@ -21,7 +21,7 @@ The act of voting represents calling the `Vote` function with a `Ballot` map whe
 This implementation of Schulze voting method adds capabilities to
 
 - remove the ballot from voting results, allowing the vote to be changed
-- add, remove or rearrange choices at any time during the voting process, while preserving consistency of the state just as the choices were present from the beginning.
+- add, remove or rearrange choices at any time during the voting process, while preserving consistency of the state just as the choices were present from the beginning
 
 `Unvote` function allows to update the pairwise preferences in a way to cancel the previously added `Ballot` to preferences using `Vote` function. It is useful to change the vote without the need to re-vote all ballots.
 
@@ -30,6 +30,10 @@ This implementation of Schulze voting method adds capabilities to
 ## Voting
 
 `Voting` holds number of votes for every pair of choices. It is a convenient construct to use when the preferences slice does not have to be exposed, and should be kept safe from accidental mutation. Methods on the Voting type are not safe for concurrent calls.
+
+## Results
+
+Results are provided by the `Compute` function which returns the ranked list of choices from the preferences, but also the iterator function over all `Duels` that represent pairwise comparisons between two choices. Duels can be used to represent and analyze results in more details.
 
 ## Example
 
@@ -64,7 +68,7 @@ func main() {
  }
 
  // Calculate the result.
- result, tie := schulze.Compute(preferences, choices)
+ result, _, tie := schulze.Compute(preferences, choices)
  if tie {
   log.Fatal("tie")
  }
