@@ -292,7 +292,7 @@ func TestVoting(t *testing.T) {
 					}
 				}
 
-				result, tie := schulze.Compute(preferences, tc.choices)
+				result, _, tie := schulze.Compute(preferences, tc.choices)
 				if tie != tc.tie {
 					t.Errorf("got tie %v, want %v", tie, tc.tie)
 				}
@@ -315,7 +315,7 @@ func TestVoting(t *testing.T) {
 					}
 				}
 
-				result, tie := v.Compute()
+				result, _, tie := v.Compute()
 				if tie != tc.tie {
 					t.Errorf("got tie %v, want %v", tie, tc.tie)
 				}
@@ -951,7 +951,7 @@ func BenchmarkVoting_Results(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		_, _ = v.Compute()
+		_, _, _ = v.Compute()
 	}
 }
 
@@ -979,7 +979,7 @@ func BenchmarkResults(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		_, _ = schulze.Compute(preferences, choices)
+		_, _, _ = schulze.Compute(preferences, choices)
 	}
 }
 

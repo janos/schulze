@@ -180,6 +180,13 @@ func SetChoices[C comparable](preferences []int, current, updated []C) []int {
 	return updatedPreferences
 }
 
+type Choice[C comparable] struct {
+	// The choice value.
+	Value C
+	// 0-based ordinal number of the choice in the choice slice.
+	Index int
+}
+
 // Result represents a total number of wins for a single choice.
 type Result[C comparable] struct {
 	// The choice value.
@@ -188,26 +195,96 @@ type Result[C comparable] struct {
 	Index int
 	// Number of wins in pairwise comparisons to other choices votings.
 	Wins int
-	// Total number of votes in wins in pairwise comparisons to other choices
-	// votings.
-	// Strength does not effect the winner, and may be less then the
-	// Strength of the choice with more wins.
+	// Total number of votes in the weakest link of the strongest path in wins
+	// in pairwise comparisons to other choices votings. Strength does not
+	// effect the winner, and may be less then the Strength of the choice with
+	// more wins.
 	Strength int
 	// Total number of preferred votes (difference between votes of the winner
-	// choice and the opponent choice) in wins in pairwise comparisons to other
-	// choices votings. Advantage does not effect the winner, and may be less
-	// then the Advantage of the choice with more wins. The code with less wins
-	// and greater Advantage had stronger but fewer wins and that information
-	// can be taken into the analysis of the results.
+	// choice and the opponent choice) in the weakest link of the strongest path
+	// in wins in pairwise comparisons to other choices votings. Advantage does
+	// not effect the winner, and may be less then the Advantage of the choice
+	// with more wins. The code with less wins and greater Advantage had
+	// stronger but fewer wins and that information can be taken into the
+	// analysis of the results.
 	Advantage int
 }
 
 // Compute calculates a sorted list of choices with the total number of wins for
 // each of them by reading preferences data previously populated by the Vote
 // function. If there are multiple winners, tie boolean parameter is true.
-func Compute[C comparable](preferences []int, choices []C) (results []Result[C], tie bool) {
+func Compute[C comparable](preferences []int, choices []C) (results []Result[C], duels DuelsIterator[C], tie bool) {
 	strengths := calculatePairwiseStrengths(choices, preferences)
-	return calculateResults(choices, strengths)
+	results, tie = calculateResults(choices, strengths)
+	return results, newDuelsIterator(choices, strengths), tie
+}
+
+// DuelsIterator is a function that returns the next Duel ordered by the choice indexes.
+type DuelsIterator[C comparable] func() *Duel[C]
+
+func newDuelsIterator[C comparable](choices []C, strengths []int) (duels DuelsIterator[C]) {
+	choicesCount := len(choices)
+	choiceIndexRow := 0
+	choiceIndexColumn := 1
+
+	return func() *Duel[C] {
+		if choiceIndexRow >= choicesCount || choiceIndexColumn >= choicesCount {
+			return nil
+		}
+
+		defer func() {
+			choiceIndexColumn++
+			if choiceIndexColumn >= choicesCount {
+				choiceIndexRow++
+				choiceIndexColumn = choiceIndexRow + 1
+			}
+		}()
+
+		return &Duel[C]{
+			Left: ChoiceStrength[C]{
+				Choice:   choices[choiceIndexRow],
+				Index:    choiceIndexRow,
+				Strength: strengths[choiceIndexRow*choicesCount+choiceIndexColumn],
+			},
+			Right: ChoiceStrength[C]{
+				Choice:   choices[choiceIndexColumn],
+				Index:    choiceIndexColumn,
+				Strength: strengths[choiceIndexColumn*choicesCount+choiceIndexRow],
+			},
+		}
+	}
+}
+
+// Duel represents a pairwise comparison between two choices that are compared
+// by their strongest paths strengths (number of votes in the weakest link of
+// the strongest path).
+type Duel[C comparable] struct {
+	Left  ChoiceStrength[C]
+	Right ChoiceStrength[C]
+}
+
+// Outcome returns the the winner and the defeated choice in the pairwise
+// comparison of their strengths. If nils are returned, the outcome of the duel
+// is a tie.
+func (d Duel[C]) Outcome() (winner, defeated *ChoiceStrength[C]) {
+	if d.Left.Strength > d.Right.Strength {
+		return &d.Left, &d.Right
+	}
+	if d.Right.Strength > d.Left.Strength {
+		return &d.Right, &d.Left
+	}
+	return nil, nil // tie
+}
+
+// ChoiceStrength stores the strength of a choice. The strength is the number of
+// votes in the weakest link of the strongest path between votes for different
+// choices.
+type ChoiceStrength[C comparable] struct {
+	// The choice value.
+	Choice C
+	// 0-based ordinal number of the choice in the choice slice.
+	Index    int
+	Strength int
 }
 
 type choiceIndex int
@@ -337,7 +414,7 @@ func calculateResults[C comparable](choices []C, strengths []int) (results []Res
 
 	for i := 0; i < choicesCount; i++ {
 		var wins int
-		var popularity int
+		var strength int
 		var advantage int
 
 		for j := 0; j < choicesCount; j++ {
@@ -346,7 +423,7 @@ func calculateResults[C comparable](choices []C, strengths []int) (results []Res
 				sji := strengths[j*choicesCount+i]
 				if sij > sji {
 					wins++
-					popularity += sij
+					strength += sij
 					advantage += sij - sji
 				}
 			}
@@ -355,7 +432,7 @@ func calculateResults[C comparable](choices []C, strengths []int) (results []Res
 			Choice:    choices[i],
 			Index:     i,
 			Wins:      wins,
-			Strength:  popularity,
+			Strength:  strength,
 			Advantage: advantage,
 		})
 	}

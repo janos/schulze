@@ -19,6 +19,7 @@ func ExampleVoting() {
 	// First vote.
 	if _, err := v.Vote(schulze.Ballot[string]{
 		"A": 1,
+		"C": 2,
 	}); err != nil {
 		log.Fatal(err)
 	}
@@ -27,19 +28,40 @@ func ExampleVoting() {
 	if _, err := v.Vote(schulze.Ballot[string]{
 		"A": 1,
 		"B": 1,
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	// Third vote.
+	if _, err := v.Vote(schulze.Ballot[string]{
+		"A": 1,
+		"B": 2,
 		"C": 2,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
 	// Calculate the result.
-	result, tie := v.Compute()
+	result, duels, tie := v.Compute()
 	if tie {
-		log.Fatal("tie")
+		log.Fatal("Tie")
 	}
-	fmt.Println("winner:", result[0].Choice)
 
-	// Output: winner: A
+	for duel := duels(); duel != nil; duel = duels() {
+		winner, defeated := duel.Outcome()
+		if winner == nil {
+			fmt.Printf("Options %s and %s are in tie %v\n", duel.Left.Choice, duel.Right.Choice, duel.Left.Strength)
+		} else {
+			fmt.Printf("Options %s defeats %s by (%v - %v) = %v votes\n", winner.Choice, defeated.Choice, winner.Strength, defeated.Strength, duel.Left.Strength-defeated.Strength)
+		}
+	}
+
+	fmt.Println("Winner:", result[0].Choice)
+
+	// Output: Options A defeats B by (2 - 0) = 2 votes
+	// Options A defeats C by (3 - 0) = 3 votes
+	// Options B and C are in tie 0
+	// Winner: A
 }
 
 func ExampleNewPreferences() {
@@ -64,7 +86,7 @@ func ExampleNewPreferences() {
 	}
 
 	// Calculate the result.
-	result, tie := schulze.Compute(preferences, choices)
+	result, _, tie := schulze.Compute(preferences, choices)
 	if tie {
 		log.Fatal("tie")
 	}

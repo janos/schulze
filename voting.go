@@ -41,6 +41,6 @@ func (v *Voting[C]) SetChoices(updated []C) {
 
 // Compute calculates a sorted list of choices with the total number of wins for
 // each of them. If there are multiple winners, tie boolean parameter is true.
-func (v *Voting[C]) Compute() (results []Result[C], tie bool) {
+func (v *Voting[C]) Compute() (results []Result[C], duels DuelsIterator[C], tie bool) {
 	return Compute(v.preferences, v.choices)
 }
