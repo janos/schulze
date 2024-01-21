@@ -29,6 +29,7 @@ func TestVoting(t *testing.T) {
 		ballots []ballot[string]
 		result  []schulze.Result[string]
 		tie     bool
+		duels   []schulze.Duel[string]
 	}{
 		{
 			name:   "empty",
@@ -200,6 +201,39 @@ func TestVoting(t *testing.T) {
 				{Choice: "B", Index: 1, Wins: 1, Strength: 33, Advantage: 5},
 				{Choice: "D", Index: 3, Wins: 0, Strength: 0, Advantage: 0},
 			},
+			duels: []schulze.Duel[string]{
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "A", Index: 0, Strength: 28},
+					Right: schulze.ChoiceStrength[string]{Choice: "B", Index: 1, Strength: 25}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "A", Index: 0, Strength: 28},
+					Right: schulze.ChoiceStrength[string]{Choice: "C", Index: 2, Strength: 25}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "A", Index: 0, Strength: 30},
+					Right: schulze.ChoiceStrength[string]{Choice: "D", Index: 3, Strength: 25}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "A", Index: 0, Strength: 24},
+					Right: schulze.ChoiceStrength[string]{Choice: "E", Index: 4, Strength: 25}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "B", Index: 1, Strength: 28},
+					Right: schulze.ChoiceStrength[string]{Choice: "C", Index: 2, Strength: 29}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "B", Index: 1, Strength: 33},
+					Right: schulze.ChoiceStrength[string]{Choice: "D", Index: 3, Strength: 28}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "B", Index: 1, Strength: 24},
+					Right: schulze.ChoiceStrength[string]{Choice: "E", Index: 4, Strength: 28}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "C", Index: 2, Strength: 29},
+					Right: schulze.ChoiceStrength[string]{Choice: "D", Index: 3, Strength: 28}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "C", Index: 2, Strength: 24},
+					Right: schulze.ChoiceStrength[string]{Choice: "E", Index: 4, Strength: 28}},
+				{
+					Left:  schulze.ChoiceStrength[string]{Choice: "D", Index: 3, Strength: 24},
+					Right: schulze.ChoiceStrength[string]{Choice: "E", Index: 4, Strength: 31},
+				},
+			},
 		},
 		{
 			name:    "unvote single option one vote",
@@ -292,12 +326,21 @@ func TestVoting(t *testing.T) {
 					}
 				}
 
-				result, _, tie := schulze.Compute(preferences, tc.choices)
+				result, duels, tie := schulze.Compute(preferences, tc.choices)
 				if tie != tc.tie {
 					t.Errorf("got tie %v, want %v", tie, tc.tie)
 				}
 				if !reflect.DeepEqual(result, tc.result) {
 					t.Errorf("got result %+v, want %+v", result, tc.result)
+				}
+				if tc.duels != nil {
+					var got []schulze.Duel[string]
+					for d := duels(); d != nil; d = duels() {
+						got = append(got, *d)
+					}
+					if !reflect.DeepEqual(got, tc.duels) {
+						t.Errorf("got duels %+v, want %+v", got, tc.duels)
+					}
 				}
 			})
 			t.Run("Voting", func(t *testing.T) {
@@ -315,12 +358,21 @@ func TestVoting(t *testing.T) {
 					}
 				}
 
-				result, _, tie := v.Compute()
+				result, duels, tie := v.Compute()
 				if tie != tc.tie {
 					t.Errorf("got tie %v, want %v", tie, tc.tie)
 				}
 				if !reflect.DeepEqual(result, tc.result) {
 					t.Errorf("got result %+v, want %+v", result, tc.result)
+				}
+				if tc.duels != nil {
+					var got []schulze.Duel[string]
+					for d := duels(); d != nil; d = duels() {
+						got = append(got, *d)
+					}
+					if !reflect.DeepEqual(got, tc.duels) {
+						t.Errorf("got duels %+v, want %+v", got, tc.duels)
+					}
 				}
 			})
 		})
@@ -437,6 +489,98 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
 			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
+}
+
+func TestDuel_Outcome(t *testing.T) {
+	t.Run("tie", func(t *testing.T) {
+		winner, defeated := schulze.Duel[string]{
+			Left: schulze.ChoiceStrength[string]{
+				Choice:   "A",
+				Index:    1,
+				Strength: 5,
+			},
+			Right: schulze.ChoiceStrength[string]{
+				Choice:   "B",
+				Index:    2,
+				Strength: 5,
+			},
+		}.Outcome()
+
+		if winner != nil {
+			t.Error("expected for winner to be nil")
+		}
+		if defeated != nil {
+			t.Error("expected for defeated to be nil")
+		}
+	})
+
+	t.Run("winner", func(t *testing.T) {
+		winner, defeated := schulze.Duel[string]{
+			Left: schulze.ChoiceStrength[string]{
+				Choice:   "A",
+				Index:    1,
+				Strength: 6,
+			},
+			Right: schulze.ChoiceStrength[string]{
+				Choice:   "B",
+				Index:    2,
+				Strength: 5,
+			},
+		}.Outcome()
+
+		if winner.Choice != "A" {
+			t.Errorf("expected for winner to be A, got %v", winner.Choice)
+		}
+		if defeated.Choice != "B" {
+			t.Errorf("expected for defeated to be B, got %v", defeated.Choice)
+		}
+		if winner.Index != 1 {
+			t.Errorf("expected for winner to be 1, got %v", winner.Index)
+		}
+		if defeated.Index != 2 {
+			t.Errorf("expected for defeated to be 2, got %v", defeated.Index)
+		}
+		if winner.Strength != 6 {
+			t.Errorf("expected for winner to be 6, got %v", winner.Strength)
+		}
+		if defeated.Strength != 5 {
+			t.Errorf("expected for defeated to be 5, got %v", defeated.Strength)
+		}
+	})
+
+	t.Run("defeated", func(t *testing.T) {
+		winner, defeated := schulze.Duel[string]{
+			Left: schulze.ChoiceStrength[string]{
+				Choice:   "A",
+				Index:    1,
+				Strength: 4,
+			},
+			Right: schulze.ChoiceStrength[string]{
+				Choice:   "B",
+				Index:    2,
+				Strength: 5,
+			},
+		}.Outcome()
+
+		if winner.Choice != "B" {
+			t.Errorf("expected for winner to be B, got %v", winner.Choice)
+		}
+		if defeated.Choice != "A" {
+			t.Errorf("expected for defeated to be A, got %v", defeated.Choice)
+		}
+		if winner.Index != 2 {
+			t.Errorf("expected for winner to be 2, got %v", winner.Index)
+		}
+		if defeated.Index != 1 {
+			t.Errorf("expected for defeated to be 1, got %v", defeated.Index)
+		}
+		if winner.Strength != 5 {
+			t.Errorf("expected for winner to be 5, got %v", winner.Strength)
+		}
+		if defeated.Strength != 4 {
+			t.Errorf("expected for defeated to be 4, got %v", defeated.Strength)
 		}
 	})
 }
@@ -834,16 +978,6 @@ func TestSetChoices(t *testing.T) {
 					}
 				}
 
-				// annulate wins for the unknown choices in validation preferences
-				// for i := 0; i < updatedChoicesCount; i++ {
-				// 	for _, j := range indexesOfNewChoices(tc.current, tc.updated) {
-				// 		if i == 0 && j == 0 {
-				// 			continue
-				// 		}
-				// 		validationPreferences[i*updatedChoicesCount+j] = 0
-				// 	}
-				// }
-
 				updatedPreferences := schulze.SetChoices(currentPreferences, tc.current, tc.updated)
 
 				validatePreferences(t, updatedPreferences, validationPreferences, currentPreferences, tc.current, tc.updated)
@@ -865,16 +999,6 @@ func TestSetChoices(t *testing.T) {
 				}
 
 				validationPreferences := validationVoting.Preferences()
-				// annulate wins for the unknown choices in validation preferences
-				// updatedChoicesCount := len(tc.updated)
-				// for i := 0; i < updatedChoicesCount; i++ {
-				// 	for _, j := range indexesOfNewChoices(tc.current, tc.updated) {
-				// 		if i == 0 && j == 0 {
-				// 			continue
-				// 		}
-				// 		validationPreferences[i*updatedChoicesCount+j] = 0
-				// 	}
-				// }
 
 				currentVoting.SetChoices(tc.updated)
 				updatedPreferences := currentVoting.Preferences()
