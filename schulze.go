@@ -42,9 +42,10 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C],
 	for rank, choices1 := range ranks {
 		rest := ranks[rank+1:]
 		for _, i := range choices1 {
+			icc := int(i) * choicesCount
 			for _, choices1 := range rest {
 				for _, j := range choices1 {
-					preferences[int(i)*choicesCount+int(j)] += 1
+					preferences[icc+int(j)] += 1
 				}
 			}
 		}
@@ -370,11 +371,13 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 	strengthsPtr := unsafe.Pointer(&strengths[0])
 
 	for i := uintptr(0); i < choicesCount; i++ {
+		icc := i * choicesCount
+
 		for j := uintptr(0); j < choicesCount; j++ {
-			// removed unnecessary check for optimization: if i == j { continue }
-			ij := i*choicesCount + j
+			ij := icc + j
 			ji := j*choicesCount + i
 			c := preferences[ij]
+
 			if c > preferences[ji] {
 				*(*int)(unsafe.Add(strengthsPtr, ij*intSize)) = c
 			}
@@ -382,23 +385,24 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 	}
 
 	for i := uintptr(0); i < choicesCount; i++ {
+		icc := i * choicesCount
+
 		for j := uintptr(0); j < choicesCount; j++ {
-			// removed unnecessary check for optimization: if i == j { continue }
-			ji := j*choicesCount + i
+			jcc := j * choicesCount
+			ji := jcc + i
 			jip := *(*int)(unsafe.Add(strengthsPtr, ji*intSize))
+
 			for k := uintptr(0); k < choicesCount; k++ {
-				// removed unnecessary check for optimization: if i == k || j == k { continue }
-				jk := j*choicesCount + k
-				ik := i*choicesCount + k
-				jkp := (*int)(unsafe.Add(strengthsPtr, jk*intSize))
-				m := max(
-					*jkp,
-					min(
-						jip,
-						*(*int)(unsafe.Add(strengthsPtr, ik*intSize)),
-					),
+
+				ik := icc + k
+				m := min(
+					jip,
+					*(*int)(unsafe.Add(strengthsPtr, ik*intSize)),
 				)
-				if *jkp != m {
+
+				jk := jcc + k
+				jkp := (*int)(unsafe.Add(strengthsPtr, jk*intSize))
+				if m > *jkp {
 					*jkp = m
 				}
 			}
@@ -456,13 +460,6 @@ func calculateResults[C comparable](choices []C, strengths []int) (results []Res
 
 func min(a, b int) int {
 	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
 		return a
 	}
 	return b
