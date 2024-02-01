@@ -52,14 +52,14 @@ func main() {
  preferences := schulze.NewPreferences(len(choices))
 
  // First vote.
- if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+ if _, err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
   "A": 1,
  }); err != nil {
   log.Fatal(err)
  }
 
  // Second vote.
- if err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
+ if _, err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
   "A": 1,
   "B": 1,
   "C": 2,
