@@ -380,7 +380,7 @@ func TestVoting(t *testing.T) {
 }
 
 func TestUnvote_afterSetChoices(t *testing.T) {
-	t.Run("add", func(t *testing.T) {
+	t.Run("add with unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
 		preferences := schulze.NewPreferences(len(choices))
 
@@ -411,11 +411,67 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 		}
 	})
 
-	t.Run("remove", func(t *testing.T) {
+	t.Run("add without unranked", func(t *testing.T) {
+		choices := []string{"A", "B", "C"}
+		preferences := schulze.NewPreferences(len(choices))
+
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 1}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("initial\n%v", sprintPreferences(choices, preferences))
+
+		updatedChoices := []string{"A", "B", "C", "D"}
+
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+
+		t.Logf("updated\n%v", sprintPreferences(updatedChoices, updatedPreferences))
+
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("unvoted\n%v\n%v", sprintPreferences(updatedChoices, updatedPreferences), record)
+
+		wantPreferences := make([]int, len(updatedPreferences))
+
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
+
+	t.Run("remove with unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
 		preferences := schulze.NewPreferences(len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		updatedChoices := []string{"A", "C"}
+
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
+
+		wantPreferences := make([]int, len(updatedPreferences))
+
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
+
+	t.Run("remove without unranked", func(t *testing.T) {
+		choices := []string{"A", "B", "C"}
+		preferences := schulze.NewPreferences(len(choices))
+
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 1}
 		record, err := schulze.Vote(preferences, choices, ballot)
 		if err != nil {
 			t.Fatal(err)
@@ -461,11 +517,42 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 		}
 	})
 
-	t.Run("complex", func(t *testing.T) {
+	t.Run("complex with unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
 		preferences := schulze.NewPreferences(len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 2, "D": 3, "E": 3, "F": 3, "G": 3}
+		record, err := schulze.Vote(preferences, choices, ballot)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("initial\n%v", sprintPreferences(choices, preferences))
+
+		updatedChoices := []string{"A", "K", "C", "E", "D", "G", "H", "J"}
+
+		updatedPreferences := schulze.SetChoices(preferences, choices, updatedChoices)
+
+		t.Logf("updated\n%v", sprintPreferences(updatedChoices, updatedPreferences))
+
+		if err := schulze.Unvote(updatedPreferences, updatedChoices, record); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("unvoted\n%v\n%v", sprintPreferences(updatedChoices, updatedPreferences), record)
+
+		wantPreferences := make([]int, len(updatedPreferences))
+
+		if !reflect.DeepEqual(updatedPreferences, wantPreferences) {
+			t.Errorf("got preferences %v, want %v", updatedPreferences, wantPreferences)
+		}
+	})
+
+	t.Run("complex without unranked", func(t *testing.T) {
+		choices := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+		preferences := schulze.NewPreferences(len(choices))
+
+		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 2, "D": 3, "E": 3, "F": 3, "G": 3, "H": 1, "I": 2, "J": 3}
 		record, err := schulze.Vote(preferences, choices, ballot)
 		if err != nil {
 			t.Fatal(err)

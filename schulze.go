@@ -27,7 +27,8 @@ type Ballot[C comparable] map[C]int
 
 // Record represents a single vote with ranked choices. It is a list of Ballot
 // values. The first ballot is the list with the first choices, the second
-// ballot is the list with the second choices, and so on.
+// ballot is the list with the second choices, and so on. The last ballot is the
+// list of choices that are not ranked, which can be an empty list.
 type Record[C comparable] [][]C
 
 // Vote updates the preferences passed as the first argument with the Ballot
@@ -51,14 +52,16 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C],
 		}
 	}
 
+	ranksLen := len(ranks)
+
 	// set diagonal values as the values of the column of the least ranked
 	// choice to be able to have the correct preferences matrix when adding new
 	// choices
 	if hasUnrankedChoices {
 		// treat the diagonal values as one of the unranked choices,
 		// deprioritizing all choices except unranked as they are of the same
-		if l := len(ranks); l > 0 {
-			for _, choices1 := range ranks[:l-1] {
+		if ranksLen > 0 {
+			for _, choices1 := range ranks[:ranksLen-1] {
 				for _, i := range choices1 {
 					preferences[int(i)*choicesCount+int(i)] += 1
 				}
@@ -72,7 +75,14 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C],
 		}
 	}
 
-	r := make([][]C, len(ranks))
+	// prepare results capacity to avoid allocation on appending the potential
+	// unranked choices
+	resultsCap := ranksLen
+	if !hasUnrankedChoices {
+		resultsCap++
+	}
+
+	r := make([][]C, ranksLen, resultsCap)
 	for rank, indexes := range ranks {
 		if r[rank] == nil {
 			r[rank] = make([]C, 0, len(indexes))
@@ -80,6 +90,10 @@ func Vote[C comparable](preferences []int, choices []C, b Ballot[C]) (Record[C],
 		for _, index := range indexes {
 			r[rank] = append(r[rank], choices[index])
 		}
+	}
+
+	if !hasUnrankedChoices {
+		r = append(r, make([]C, 0))
 	}
 
 	return r, nil
@@ -116,6 +130,9 @@ func Unvote[C comparable](preferences []int, choices []C, r Record[C]) error {
 	knownChoices := newBitset(uint64(choicesCount))
 	rankedChoices := newBitset(uint64(choicesCount))
 	// remove voting from the ranked choices of the Record
+	//
+	// it is essential to have the last record ballot as
+	// unranked choices even if it is empty
 	for _, choices1 := range r[:recordLength-1] {
 		for _, choice1 := range choices1 {
 			i := getChoiceIndex(choices, choice1)
