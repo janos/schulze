@@ -1140,7 +1140,7 @@ func BenchmarkVote(b *testing.B) {
 func BenchmarkVoting_Results(b *testing.B) {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	const choicesCount = 100
+	const choicesCount = 1000
 
 	choices := newChoices(choicesCount)
 
@@ -1169,7 +1169,7 @@ func BenchmarkVoting_Results(b *testing.B) {
 func BenchmarkResults(b *testing.B) {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	const choicesCount = 100
+	const choicesCount = 1000
 
 	choices := newChoices(choicesCount)
 	preferences := schulze.NewPreferences(choicesCount)

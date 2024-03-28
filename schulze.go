@@ -401,6 +401,9 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 		}
 	}
 
+	// optimize most inner loop by loop unrolling
+	const step = 8
+
 	for i := uintptr(0); i < choicesCount; i++ {
 		icc := i * choicesCount
 
@@ -409,24 +412,39 @@ func calculatePairwiseStrengths[C comparable](choices []C, preferences []int) []
 			ji := jcc + i
 			jip := *(*int)(unsafe.Add(strengthsPtr, ji*intSize))
 
-			for k := uintptr(0); k < choicesCount; k++ {
-
-				ik := icc + k
-				m := min(
-					jip,
-					*(*int)(unsafe.Add(strengthsPtr, ik*intSize)),
-				)
-
-				jk := jcc + k
-				jkp := (*int)(unsafe.Add(strengthsPtr, jk*intSize))
-				if m > *jkp {
-					*jkp = m
-				}
+			ccMod := choicesCount % step
+			cc := choicesCount - ccMod
+			for k := uintptr(0); k < cc; k += step {
+				setStrengthValue(strengthsPtr, icc, jcc, k, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+1, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+2, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+3, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+4, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+5, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+6, jip)
+				setStrengthValue(strengthsPtr, icc, jcc, k+7, jip)
+			}
+			for k := uintptr(cc); k < choicesCount; k++ {
+				setStrengthValue(strengthsPtr, icc, jcc, k, jip)
 			}
 		}
 	}
 
 	return strengths
+}
+
+func setStrengthValue(strengthsPtr unsafe.Pointer, icc, jcc, k uintptr, jip int) {
+	ik := icc + k
+	m := min(
+		jip,
+		*(*int)(unsafe.Add(strengthsPtr, ik*intSize)),
+	)
+
+	jk := jcc + k
+	jkp := (*int)(unsafe.Add(strengthsPtr, jk*intSize))
+	if m > *jkp {
+		*jkp = m
+	}
 }
 
 func calculateResults[C comparable](choices []C, strengths []int) (results []Result[C], tie bool) {
