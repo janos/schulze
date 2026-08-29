@@ -67,7 +67,7 @@ func ExampleVoting() {
 func ExampleNewPreferences() {
 	// Create a new voting.
 	choices := []string{"A", "B", "C"}
-	preferences := schulze.NewPreferences(len(choices))
+	preferences := schulze.NewPreferences[int](len(choices))
 
 	// First vote.
 	if _, err := schulze.Vote(preferences, choices, schulze.Ballot[string]{

@@ -5,16 +5,29 @@
 
 package schulze
 
-type bitSet []uint64
-
-func newBitset(size uint64) bitSet {
-	return bitSet(make([]uint64, size/64+1))
+type bitSet struct {
+	single uint64
+	words  []uint64
 }
 
-func (s bitSet) set(i uint64) {
-	s[i/64] |= 1 << (i % 64)
+func newBitset(size uint64) bitSet {
+	if size <= 64 {
+		return bitSet{}
+	}
+	return bitSet{words: make([]uint64, (size+63)/64)}
+}
+
+func (s *bitSet) set(i uint64) {
+	if len(s.words) == 0 {
+		s.single |= 1 << i
+		return
+	}
+	s.words[i/64] |= 1 << (i % 64)
 }
 
 func (s bitSet) isSet(i uint64) bool {
-	return s[i/64]&(1<<(i%64)) != 0
+	if len(s.words) == 0 {
+		return s.single&(1<<i) != 0
+	}
+	return s.words[i/64]&(1<<(i%64)) != 0
 }

@@ -7,18 +7,14 @@ package schulze
 
 import (
 	"math/rand"
+	"slices"
 	"testing"
 	"time"
 )
 
 func TestBitSet(t *testing.T) {
 	contains := func(i uint64, values []uint64) bool {
-		for _, v := range values {
-			if i == v {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(values, i)
 	}
 
 	seed := time.Now().UnixNano()
@@ -32,7 +28,7 @@ func TestBitSet(t *testing.T) {
 	for _, v := range values {
 		s.set(v)
 	}
-	for i := uint64(0); i < size; i++ {
+	for i := range size {
 		if contains(i, values) {
 			if !s.isSet(i) {
 				t.Errorf("expected value %v is not set (seed %v)", i, seed)

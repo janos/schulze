@@ -5,9 +5,8 @@
 
 package schulze
 
-// Preferences reruns a copy of preferences for testing purposes.
-func (v *Voting[C]) Preferences() []int {
-	p := make([]int, len(v.preferences))
-	copy(p, v.preferences)
-	return p
+import "unsafe"
+
+func RelaxRow(rowI, rowJ unsafe.Pointer, jip int, n int) {
+	relaxRow(rowI, rowJ, jip, n)
 }

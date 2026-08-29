@@ -11,9 +11,11 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
+	"unsafe"
 
 	"resenje.org/schulze"
 )
@@ -312,7 +314,7 @@ func TestVoting(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run("functional", func(t *testing.T) {
-				preferences := schulze.NewPreferences(len(tc.choices))
+				preferences := schulze.NewPreferences[int](len(tc.choices))
 
 				for _, b := range tc.ballots {
 					if b.unvote != nil {
@@ -382,7 +384,7 @@ func TestVoting(t *testing.T) {
 func TestUnvote_afterSetChoices(t *testing.T) {
 	t.Run("add with unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -413,7 +415,7 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 	t.Run("add without unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 1}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -444,7 +446,7 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 	t.Run("remove with unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -469,7 +471,7 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 	t.Run("remove without unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 1}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -494,7 +496,7 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 	t.Run("rearrange", func(t *testing.T) {
 		choices := []string{"A", "B", "C"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -519,7 +521,7 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 	t.Run("complex with unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 2, "D": 3, "E": 3, "F": 3, "G": 3}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -550,7 +552,7 @@ func TestUnvote_afterSetChoices(t *testing.T) {
 
 	t.Run("complex without unranked", func(t *testing.T) {
 		choices := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
-		preferences := schulze.NewPreferences(len(choices))
+		preferences := schulze.NewPreferences[int](len(choices))
 
 		ballot := schulze.Ballot[string]{"A": 1, "B": 2, "C": 2, "D": 3, "E": 3, "F": 3, "G": 3, "H": 1, "I": 2, "J": 3}
 		record, err := schulze.Vote(preferences, choices, ballot)
@@ -1050,14 +1052,14 @@ func TestSetChoices(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run("functional", func(t *testing.T) {
-				currentPreferences := schulze.NewPreferences(len(tc.current))
+				currentPreferences := schulze.NewPreferences[int](len(tc.current))
 				for _, b := range tc.ballots {
 					if _, err := schulze.Vote(currentPreferences, tc.current, b); err != nil {
 						t.Fatal(err)
 					}
 				}
 				updatedChoicesCount := len(tc.updated)
-				validationPreferences := schulze.NewPreferences(updatedChoicesCount)
+				validationPreferences := schulze.NewPreferences[int](updatedChoicesCount)
 				for _, b := range tc.ballots {
 					b := removeChoices(b, removedChoices(tc.current, tc.updated))
 					if _, err := schulze.Vote(validationPreferences, tc.updated, b); err != nil {
@@ -1099,9 +1101,7 @@ func TestSetChoices(t *testing.T) {
 func BenchmarkNewVoting(b *testing.B) {
 	choices := newChoices(1000)
 
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_ = schulze.NewVoting(choices)
 	}
 }
@@ -1109,9 +1109,7 @@ func BenchmarkNewVoting(b *testing.B) {
 func BenchmarkVoting_Vote(b *testing.B) {
 	v := schulze.NewVoting(newChoices(1000))
 
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		if _, err := v.Vote(schulze.Ballot[string]{
 			"a": 1,
 		}); err != nil {
@@ -1124,11 +1122,9 @@ func BenchmarkVote(b *testing.B) {
 	const choicesCount = 1000
 
 	choices := newChoices(choicesCount)
-	preferences := schulze.NewPreferences(choicesCount)
+	preferences := schulze.NewPreferences[int](choicesCount)
 
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		if _, err := schulze.Vote(preferences, choices, schulze.Ballot[string]{
 			"a": 1,
 		}); err != nil {
@@ -1146,7 +1142,7 @@ func BenchmarkVoting_Results(b *testing.B) {
 
 	v := schulze.NewVoting(choices)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		ballot := make(schulze.Ballot[string])
 		ballot[choices[random.Intn(choicesCount)]] = 1
 		ballot[choices[random.Intn(choicesCount)]] = 1
@@ -1159,9 +1155,7 @@ func BenchmarkVoting_Results(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, _, _ = v.Compute()
 	}
 }
@@ -1172,9 +1166,9 @@ func BenchmarkResults(b *testing.B) {
 	const choicesCount = 1000
 
 	choices := newChoices(choicesCount)
-	preferences := schulze.NewPreferences(choicesCount)
+	preferences := schulze.NewPreferences[int](choicesCount)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		ballot := make(schulze.Ballot[string])
 		ballot[choices[random.Intn(choicesCount)]] = 1
 		ballot[choices[random.Intn(choicesCount)]] = 1
@@ -1187,16 +1181,14 @@ func BenchmarkResults(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, _, _ = schulze.Compute(preferences, choices)
 	}
 }
 
 func newChoices(count int) []string {
 	choices := make([]string, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		choices = append(choices, strconv.FormatInt(int64(i), 36))
 	}
 	return choices
@@ -1213,9 +1205,9 @@ func randomBallots[C comparable](t *testing.T, choices []C, count int) []schulze
 	ballots := make([]schulze.Ballot[C], 0, count)
 
 	choicesLength := len(choices)
-	for i := 0; i < count; i++ {
+	for range count {
 		b := make(schulze.Ballot[C])
-		for i := 0; i < choicesLength; i++ {
+		for range choicesLength {
 			b[choices[random.Intn(choicesLength)]] = random.Intn(choicesLength)
 		}
 		ballots = append(ballots, b)
@@ -1226,7 +1218,7 @@ func randomBallots[C comparable](t *testing.T, choices []C, count int) []schulze
 
 func removedChoices[C comparable](old, new []C) (removed []C) {
 	for _, c := range old {
-		if !contains(new, c) {
+		if !slices.Contains(new, c) {
 			removed = append(removed, c)
 		}
 	}
@@ -1236,7 +1228,7 @@ func removedChoices[C comparable](old, new []C) (removed []C) {
 func removeChoices[C comparable](b schulze.Ballot[C], choices []C) schulze.Ballot[C] {
 	r := make(map[C]int)
 	for c, v := range b {
-		if contains(choices, c) {
+		if slices.Contains(choices, c) {
 			continue
 		}
 		r[c] = v
@@ -1315,7 +1307,7 @@ func matrix(preferences []int) [][]int {
 
 	matrix := make([][]int, 0, choicesCount)
 
-	for i := 0; i < choicesCount; i++ {
+	for i := range choicesCount {
 		matrix = append(matrix, preferences[i*choicesCount:(i+1)*choicesCount])
 	}
 	return matrix
@@ -1343,11 +1335,493 @@ func floorSqrt(x int) int {
 	return ans
 }
 
-func contains[C comparable](s []C, e C) bool {
-	for _, x := range s {
-		if x == e {
-			return true
+func TestVoteRanked(t *testing.T) {
+	choices := []string{"A", "B", "C", "D"}
+	v1 := schulze.NewVoting(choices)
+	v2 := schulze.NewVoting(choices)
+
+	// Vote via map
+	_, err := v1.Vote(schulze.Ballot[string]{
+		"A": 1,
+		"B": 2,
+		"C": 2,
+		"D": 3,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Vote via ranked slice
+	rec2, err := v2.VoteRanked([][]string{
+		{"A"},
+		{"B", "C"},
+		{"D"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v1.Preferences(), v2.Preferences()) {
+		t.Fatalf("preferences mismatch:\nmap:    %v\nranked: %v", v1.Preferences(), v2.Preferences())
+	}
+
+	// Test unvote with ranked record
+	if err := v2.Unvote(rec2); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range v2.Preferences() {
+		if p != 0 {
+			t.Fatalf("expected 0 after unvote, got %v", p)
 		}
 	}
-	return false
+
+	// Test invalid ranked vote with duplicates
+	_, err = v2.VoteRanked([][]string{
+		{"A", "B"},
+		{"A"},
+	})
+	if err == nil {
+		t.Fatal("expected error on duplicate choice in VoteRanked")
+	}
+
+	// Test unknown choice
+	_, err = v2.VoteRanked([][]string{
+		{"X"},
+	})
+	if err == nil {
+		t.Fatal("expected error on unknown choice in VoteRanked")
+	}
+}
+
+func TestVoteFrom(t *testing.T) {
+	type Survey struct {
+		Scores map[string]int
+	}
+
+	choices := []string{"A", "B", "C"}
+	v := schulze.NewVoting(choices)
+
+	survey := Survey{
+		Scores: map[string]int{
+			"A": 10,
+			"B": 5,
+		},
+	}
+
+	rec, err := v.VoteFrom(survey, func(s Survey, c string) (int, bool) {
+		score, ok := s.Scores[c]
+		if !ok {
+			return 0, false
+		}
+		// Invert score so higher score = lower rank number
+		return 100 - score, true
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rec) != 3 { // 2 ranked + 1 unranked
+		t.Fatalf("unexpected record length %d", len(rec))
+	}
+}
+
+func TestMap(t *testing.T) {
+	choices := []string{"apple", "banana", "cherry"}
+	v := schulze.NewVoting(choices)
+
+	rec, err := v.Vote(schulze.Ballot[string]{
+		"apple":  1,
+		"banana": 2,
+		"cherry": 3,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Map Record
+	mappedRec := rec.Map(func(s string) int {
+		return len(s)
+	})
+	if mappedRec[0][0] != 5 { // "apple" len
+		t.Fatalf("expected 5, got %v", mappedRec[0][0])
+	}
+
+	// Map Voting
+	mappedV := v.Map(func(s string) string {
+		return "choice:" + s
+	})
+	if mappedV.Choices()[0] != "choice:apple" {
+		t.Fatalf("expected choice:apple, got %v", mappedV.Choices()[0])
+	}
+
+	// Map Compute Results and Duels
+	results, duelsIt, _ := v.Compute()
+	mappedRes := results[0].Map(func(s string) string {
+		return "winner:" + s
+	})
+	if mappedRes.Choice != "winner:apple" {
+		t.Fatalf("expected winner:apple, got %v", mappedRes.Choice)
+	}
+
+	d := duelsIt()
+	if d != nil {
+		mappedDuel := d.Map(func(s string) string {
+			return "c:" + s
+		})
+		if mappedDuel.Left.Choice != "c:apple" {
+			t.Fatalf("expected c:apple, got %v", mappedDuel.Left.Choice)
+		}
+	}
+}
+
+func TestDuelsIterator_Seq(t *testing.T) {
+	choices := []string{"A", "B", "C"}
+	v := schulze.NewVoting(choices)
+
+	_, _ = v.Vote(schulze.Ballot[string]{
+		"A": 1,
+		"B": 2,
+		"C": 3,
+	})
+
+	count := 0
+	for duel := range v.Duels() {
+		if duel == nil {
+			t.Fatal("unexpected nil duel")
+		}
+		count++
+	}
+	// 3 choices -> 3 pairs (A-B, A-C, B-C)
+	if count != 3 {
+		t.Fatalf("expected 3 duels, got %d", count)
+	}
+
+	// Test Duels standalone function
+	count2 := 0
+	for duel := range schulze.Duels(v.Preferences(), v.Choices()) {
+		if duel == nil {
+			t.Fatal("unexpected nil duel")
+		}
+		count2++
+	}
+	if count2 != 3 {
+		t.Fatalf("expected 3 duels from Duels(), got %d", count2)
+	}
+}
+
+func TestGenericNumberPreferences(t *testing.T) {
+	choices := []string{"A", "B", "C"}
+
+	// uint32 preferences
+	prefsU32 := schulze.NewPreferences[uint32](len(choices))
+	rec, err := schulze.Vote(prefsU32, choices, schulze.Ballot[string]{
+		"A": 1,
+		"B": 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resU32, _, tie := schulze.Compute(prefsU32, choices)
+	if tie || resU32[0].Choice != "A" {
+		t.Fatalf("expected A winner, got %v (tie=%v)", resU32[0].Choice, tie)
+	}
+
+	// uint16 preferences
+	prefsU16 := schulze.NewPreferences[uint16](len(choices))
+	_, err = schulze.Vote(prefsU16, choices, schulze.Ballot[string]{
+		"A": 1,
+		"B": 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resU16, _, _ := schulze.Compute(prefsU16, choices)
+	if resU16[0].Choice != "A" {
+		t.Fatalf("expected A winner, got %v", resU16[0].Choice)
+	}
+
+	// Unvote on uint32
+	if err := schulze.Unvote(prefsU32, choices, rec); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range prefsU32 {
+		if p != 0 {
+			t.Fatalf("expected 0, got %d", p)
+		}
+	}
+}
+
+func TestExportImportPreferences(t *testing.T) {
+	choices := []string{"A", "B"}
+	v := schulze.NewVoting(choices)
+	_, _ = v.Vote(schulze.Ballot[string]{"A": 1, "B": 2})
+
+	exported := v.ExportPreferences[uint32]()
+	if len(exported) != 4 {
+		t.Fatalf("expected 4 exported prefs, got %d", len(exported))
+	}
+
+	v2 := schulze.NewVoting(choices)
+	if err := v2.ImportPreferences(exported); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(v.Preferences(), v2.Preferences()) {
+		t.Fatalf("preferences mismatch after import: %v vs %v", v.Preferences(), v2.Preferences())
+	}
+}
+
+func FuzzVote(f *testing.F) {
+	f.Add("A", "B", "C", 1, 2, 3)
+	f.Add("X", "Y", "Z", 10, 5, 5)
+
+	f.Fuzz(func(t *testing.T, c1, c2, c3 string, r1, r2, r3 int) {
+		choices := []string{c1, c2, c3}
+		if schulze.ValidateChoices(choices) != nil {
+			return
+		}
+
+		v := schulze.NewVoting(choices)
+		ballot := schulze.Ballot[string]{
+			c1: r1,
+			c2: r2,
+			c3: r3,
+		}
+
+		rec, err := v.Vote(ballot)
+		if err != nil {
+			t.Fatalf("unexpected error voting: %v", err)
+		}
+
+		results, _, _ := v.Compute()
+		if len(results) != len(choices) {
+			t.Fatalf("expected %d results, got %d", len(choices), len(results))
+		}
+
+		if err := v.Unvote(rec); err != nil {
+			t.Fatalf("unexpected error unvoting: %v", err)
+		}
+	})
+}
+
+func FuzzCompute(f *testing.F) {
+	f.Add(1, 2, 0, 3)
+	f.Fuzz(func(t *testing.T, p0, p1, p2, p3 int) {
+		if p0 < 0 || p1 < 0 || p2 < 0 || p3 < 0 {
+			return
+		}
+		choices := []string{"A", "B"}
+		prefs := []int{p0, p1, p2, p3}
+		results, duels, _ := schulze.Compute(prefs, choices)
+		if len(results) != 2 {
+			t.Fatalf("expected 2 results, got %d", len(results))
+		}
+		d := duels()
+		if d == nil {
+			t.Fatal("expected duel")
+		}
+	})
+}
+
+func BenchmarkVoteRanked(b *testing.B) {
+	const choicesCount = 1000
+	choices := newChoices(choicesCount)
+	preferences := schulze.NewPreferences[int](choicesCount)
+	ranked := [][]string{{"0"}, {"1", "2"}, {"3"}}
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		if _, err := schulze.VoteRanked(preferences, choices, ranked); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVote_Sizes(b *testing.B) {
+	for _, nChoices := range []int{5, 20, 100, 1000} {
+		b.Run(strconv.Itoa(nChoices), func(b *testing.B) {
+			choices := newChoices(nChoices)
+			preferences := schulze.NewPreferences[int](nChoices)
+			ballot := schulze.Ballot[string]{
+				choices[0]: 1,
+				choices[1]: 2,
+			}
+
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				if _, err := schulze.Vote(preferences, choices, ballot); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkVoteRanked_Sizes(b *testing.B) {
+	for _, nChoices := range []int{5, 20, 100, 1000} {
+		b.Run(strconv.Itoa(nChoices), func(b *testing.B) {
+			choices := newChoices(nChoices)
+			preferences := schulze.NewPreferences[int](nChoices)
+			ranked := [][]string{{choices[0]}, {choices[1]}}
+
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				if _, err := schulze.VoteRanked(preferences, choices, ranked); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestRelaxRowDirect(t *testing.T) {
+	rowI := []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
+	rowJ := []int{5, 25, 15, 35, 60, 10, 20, 95, 30, 50}
+	expected := append([]int(nil), rowJ...)
+	jip := 45
+
+	for k := range rowI {
+		m := min(jip, rowI[k])
+		if m > expected[k] {
+			expected[k] = m
+		}
+	}
+
+	schulze.RelaxRow(unsafe.Pointer(&rowI[0]), unsafe.Pointer(&rowJ[0]), jip, len(rowI))
+
+	t.Logf("Expected: %v", expected)
+	t.Logf("Actual:   %v", rowJ)
+	if !reflect.DeepEqual(expected, rowJ) {
+		t.Fatalf("mismatch in relaxRow: expected %v, got %v", expected, rowJ)
+	}
+}
+
+func TestWinner(t *testing.T) {
+	choices := []string{"A", "B", "C", "D"}
+	v := schulze.NewVoting(choices)
+
+	// A beats B, C, D in every pairwise matchup (Condorcet winner)
+	_, _ = v.Vote(schulze.Ballot[string]{"A": 1, "B": 2, "C": 3, "D": 4})
+	_, _ = v.Vote(schulze.Ballot[string]{"A": 1, "C": 2, "B": 3, "D": 4})
+	_, _ = v.Vote(schulze.Ballot[string]{"A": 1, "D": 2, "B": 3, "C": 4})
+
+	winner, tie := v.Winner()
+	if tie {
+		t.Fatal("expected no tie for Condorcet winner")
+	}
+	if winner.Choice != "A" {
+		t.Fatalf("expected A, got %v", winner.Choice)
+	}
+
+	// Test election without Condorcet winner (cycle with unequal margin)
+	vCycle := schulze.NewVoting([]string{"A", "B", "C"})
+	_, _ = vCycle.Vote(schulze.Ballot[string]{"A": 1, "B": 2, "C": 3})
+	_, _ = vCycle.Vote(schulze.Ballot[string]{"A": 1, "B": 2, "C": 3})
+	_, _ = vCycle.Vote(schulze.Ballot[string]{"B": 1, "C": 2, "A": 3})
+	_, _ = vCycle.Vote(schulze.Ballot[string]{"C": 1, "A": 2, "B": 3})
+
+	winnerCycle, tieCycle := vCycle.Winner()
+	if tieCycle {
+		t.Fatal("expected no tie in cycle with clear winner")
+	}
+	results, _, _ := vCycle.Compute()
+	if winnerCycle.Choice != results[0].Choice {
+		t.Fatalf("expected %v, got %v", results[0].Choice, winnerCycle.Choice)
+	}
+}
+
+func TestCompute_Large(t *testing.T) {
+	const nChoices = 100
+	choices := newChoices(nChoices)
+	v := schulze.NewVoting(choices)
+
+	for i := range 50 {
+		ballot := make(schulze.Ballot[string])
+		for j := range 10 {
+			ballot[choices[(i+j*7)%nChoices]] = j + 1
+		}
+		if _, err := v.Vote(ballot); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	results, duels, _ := v.Compute()
+	if len(results) != nChoices {
+		t.Fatalf("expected %d results, got %d", nChoices, len(results))
+	}
+
+	var count int
+	for range v.Duels() {
+		count++
+	}
+	expectedDuels := (nChoices * (nChoices - 1)) / 2
+	if count != expectedDuels {
+		t.Fatalf("expected %d duels, got %d", expectedDuels, count)
+	}
+
+	// Verify duels iterator returns the same count
+	var iterCount int
+	for {
+		d := duels()
+		if d == nil {
+			break
+		}
+		iterCount++
+	}
+	if iterCount != expectedDuels {
+		t.Fatalf("expected %d duels from iterator, got %d", expectedDuels, iterCount)
+	}
+}
+
+func BenchmarkCompute_Sizes(b *testing.B) {
+	for _, nChoices := range []int{5, 20, 100, 500, 1000} {
+		b.Run(strconv.Itoa(nChoices), func(b *testing.B) {
+			choices := newChoices(nChoices)
+			preferences := schulze.NewPreferences[int](nChoices)
+			for i := range nChoices {
+				for j := range nChoices {
+					if i != j {
+						preferences[i*nChoices+j] = (i*7 + j*13) % 100
+					}
+				}
+			}
+
+			for b.Loop() {
+				_, _, _ = schulze.Compute(preferences, choices)
+			}
+		})
+	}
+}
+
+func BenchmarkWinner_Sizes(b *testing.B) {
+	for _, nChoices := range []int{5, 20, 100, 500, 1000} {
+		b.Run(strconv.Itoa(nChoices), func(b *testing.B) {
+			choices := newChoices(nChoices)
+			preferences := schulze.NewPreferences[int](nChoices)
+			// Make candidate 0 the Condorcet winner
+			for j := 1; j < nChoices; j++ {
+				preferences[0*nChoices+j] = 100
+				preferences[j*nChoices+0] = 10
+			}
+
+			for b.Loop() {
+				_, _ = schulze.Winner(preferences, choices)
+			}
+		})
+	}
+}
+
+func BenchmarkSetChoices_Sizes(b *testing.B) {
+	for _, nChoices := range []int{5, 20, 100, 1000} {
+		b.Run(strconv.Itoa(nChoices), func(b *testing.B) {
+			choices := newChoices(nChoices)
+			updated := newChoices(nChoices)
+			if nChoices >= 2 {
+				updated[0], updated[1] = updated[1], updated[0]
+			}
+			preferences := schulze.NewPreferences[int](nChoices)
+
+			for b.Loop() {
+				_ = schulze.SetChoices(preferences, choices, updated)
+			}
+		})
+	}
 }
