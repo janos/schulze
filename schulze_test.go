@@ -1627,8 +1627,7 @@ func BenchmarkVoteRanked(b *testing.B) {
 	preferences := schulze.NewPreferences[int](choicesCount)
 	ranked := [][]string{{"0"}, {"1", "2"}, {"3"}}
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		if _, err := schulze.VoteRanked(preferences, choices, ranked); err != nil {
 			b.Fatal(err)
 		}

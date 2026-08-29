@@ -27,7 +27,7 @@ Alternatively, `VoteRanked` accepts a pre-ordered slice of ranks (`[][]C`), avoi
 - **Generic Ballot Ingestion**: `VoteFrom` enables voting directly from arbitrary external structures using a custom ranking function.
 - **Type transformations (`Map`)**: `Record`, `Result`, `Duel`, and `Voting` support Go method type parameters via `.Map(...)` to translate between choice identifiers (e.g. `UUID` $\leftrightarrow$ `string` $\leftrightarrow$ `int`).
 - **Standard Go iterators**: `Duels` provides a standard `iter.Seq[*Duel[C]]` iterator for range-over-func loops.
-- **Hardware SIMD Acceleration**: Uses ARM64 NEON and AMD64 AVX/SSE vector assembly kernels to accelerate inner matrix relaxation.
+- **Hardware SIMD Acceleration**: Uses ARM64 NEON vector assembly kernels and unrolled multi-core pipelines to accelerate inner matrix relaxation.
 - **Fast Winner Calculation**: `Winner` returns the election winner using an $O(N^2)$ Condorcet fast-path with fallback to full beatpath computation for cycles.
 - **Configurable numeric precision**: Pairwise preferences support generic `Number` types (`int`, `uint32`, `uint16`, etc.) for memory optimization.
 
