@@ -7,6 +7,7 @@ package schulze_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -1823,4 +1824,220 @@ func BenchmarkSetChoices_Sizes(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestVoteWeighted(t *testing.T) {
+	choices := []string{"A", "B", "C", "D"}
+	ballot := schulze.Ballot[string]{
+		"A": 1,
+		"B": 2,
+		"C": 3,
+	}
+
+	t.Run("invalid weight", func(t *testing.T) {
+		prefs := schulze.NewPreferences[int](len(choices))
+		if _, err := schulze.VoteWeighted(prefs, choices, ballot, 0); !errors.Is(err, schulze.ErrInvalidWeight) {
+			t.Errorf("expected ErrInvalidWeight for weight 0, got %v", err)
+		}
+		if _, err := schulze.VoteWeighted(prefs, choices, ballot, -5); !errors.Is(err, schulze.ErrInvalidWeight) {
+			t.Errorf("expected ErrInvalidWeight for negative weight, got %v", err)
+		}
+	})
+
+	t.Run("equivalence to repeated Vote", func(t *testing.T) {
+		for weight := 1; weight <= 10; weight++ {
+			prefsWeighted := schulze.NewPreferences[int](len(choices))
+			recWeighted, err := schulze.VoteWeighted(prefsWeighted, choices, ballot, weight)
+			if err != nil {
+				t.Fatalf("weight %d: VoteWeighted: %v", weight, err)
+			}
+
+			prefsLoop := schulze.NewPreferences[int](len(choices))
+			var recLoop schulze.Record[string]
+			for range weight {
+				recLoop, err = schulze.Vote(prefsLoop, choices, ballot)
+				if err != nil {
+					t.Fatalf("weight %d: Vote: %v", weight, err)
+				}
+			}
+
+			if !slices.Equal(prefsWeighted, prefsLoop) {
+				t.Errorf("weight %d: preferences mismatch: weighted=%v, loop=%v", weight, prefsWeighted, prefsLoop)
+			}
+			if !reflect.DeepEqual(recWeighted, recLoop) {
+				t.Errorf("weight %d: record mismatch: weighted=%v, loop=%v", weight, recWeighted, recLoop)
+			}
+
+			// Test Voting method equivalence
+			v := schulze.NewVoting(choices)
+			recV, err := v.VoteWeighted(ballot, weight)
+			if err != nil {
+				t.Fatalf("weight %d: Voting.VoteWeighted: %v", weight, err)
+			}
+			if !slices.Equal(v.Preferences(), prefsWeighted) {
+				t.Errorf("weight %d: Voting preferences mismatch: %v != %v", weight, v.Preferences(), prefsWeighted)
+			}
+			if !reflect.DeepEqual(recV, recWeighted) {
+				t.Errorf("weight %d: Voting record mismatch: %v != %v", weight, recV, recWeighted)
+			}
+		}
+	})
+}
+
+func TestVoteRankedWeighted(t *testing.T) {
+	choices := []string{"A", "B", "C", "D", "E"}
+	ranked := [][]string{
+		{"A", "B"},
+		{"C"},
+	}
+
+	t.Run("invalid weight", func(t *testing.T) {
+		prefs := schulze.NewPreferences[int](len(choices))
+		if _, err := schulze.VoteRankedWeighted(prefs, choices, ranked, 0); !errors.Is(err, schulze.ErrInvalidWeight) {
+			t.Errorf("expected ErrInvalidWeight for weight 0, got %v", err)
+		}
+		if _, err := schulze.VoteRankedWeighted(prefs, choices, ranked, -1); !errors.Is(err, schulze.ErrInvalidWeight) {
+			t.Errorf("expected ErrInvalidWeight for negative weight, got %v", err)
+		}
+	})
+
+	t.Run("equivalence to repeated VoteRanked", func(t *testing.T) {
+		for weight := 1; weight <= 10; weight++ {
+			prefsWeighted := schulze.NewPreferences[int](len(choices))
+			recWeighted, err := schulze.VoteRankedWeighted(prefsWeighted, choices, ranked, weight)
+			if err != nil {
+				t.Fatalf("weight %d: VoteRankedWeighted: %v", weight, err)
+			}
+
+			prefsLoop := schulze.NewPreferences[int](len(choices))
+			var recLoop schulze.Record[string]
+			for range weight {
+				recLoop, err = schulze.VoteRanked(prefsLoop, choices, ranked)
+				if err != nil {
+					t.Fatalf("weight %d: VoteRanked: %v", weight, err)
+				}
+			}
+
+			if !slices.Equal(prefsWeighted, prefsLoop) {
+				t.Errorf("weight %d: preferences mismatch: weighted=%v, loop=%v", weight, prefsWeighted, prefsLoop)
+			}
+			if !reflect.DeepEqual(recWeighted, recLoop) {
+				t.Errorf("weight %d: record mismatch: weighted=%v, loop=%v", weight, recWeighted, recLoop)
+			}
+
+			// Test Voting method equivalence
+			v := schulze.NewVoting(choices)
+			recV, err := v.VoteRankedWeighted(ranked, weight)
+			if err != nil {
+				t.Fatalf("weight %d: Voting.VoteRankedWeighted: %v", weight, err)
+			}
+			if !slices.Equal(v.Preferences(), prefsWeighted) {
+				t.Errorf("weight %d: Voting preferences mismatch: %v != %v", weight, v.Preferences(), prefsWeighted)
+			}
+			if !reflect.DeepEqual(recV, recWeighted) {
+				t.Errorf("weight %d: Voting record mismatch: %v != %v", weight, recV, recWeighted)
+			}
+		}
+	})
+}
+
+func TestUnvoteWeighted(t *testing.T) {
+	choices := []string{"A", "B", "C", "D"}
+	ranked := [][]string{
+		{"A"},
+		{"B", "C"},
+	}
+
+	t.Run("invalid weight", func(t *testing.T) {
+		prefs := schulze.NewPreferences[int](len(choices))
+		rec, _ := schulze.VoteRanked(prefs, choices, ranked)
+		if err := schulze.UnvoteWeighted(prefs, choices, rec, 0); !errors.Is(err, schulze.ErrInvalidWeight) {
+			t.Errorf("expected ErrInvalidWeight for weight 0, got %v", err)
+		}
+		if err := schulze.UnvoteWeighted(prefs, choices, rec, -3); !errors.Is(err, schulze.ErrInvalidWeight) {
+			t.Errorf("expected ErrInvalidWeight for negative weight, got %v", err)
+		}
+	})
+
+	t.Run("equivalence to repeated Unvote", func(t *testing.T) {
+		for weight := 1; weight <= 10; weight++ {
+			// 1. Vote weighted then unvote weighted
+			prefsWeighted := schulze.NewPreferences[int](len(choices))
+			rec, err := schulze.VoteRankedWeighted(prefsWeighted, choices, ranked, weight)
+			if err != nil {
+				t.Fatalf("VoteRankedWeighted: %v", err)
+			}
+			if err := schulze.UnvoteWeighted(prefsWeighted, choices, rec, weight); err != nil {
+				t.Fatalf("UnvoteWeighted: %v", err)
+			}
+
+			// 2. Vote loop then unvote loop
+			prefsLoop := schulze.NewPreferences[int](len(choices))
+			var recLoop schulze.Record[string]
+			for range weight {
+				recLoop, err = schulze.VoteRanked(prefsLoop, choices, ranked)
+				if err != nil {
+					t.Fatalf("VoteRanked: %v", err)
+				}
+			}
+			for range weight {
+				if err := schulze.Unvote(prefsLoop, choices, recLoop); err != nil {
+					t.Fatalf("Unvote: %v", err)
+				}
+			}
+
+			// Both must be equal and back to zero
+			emptyPrefs := schulze.NewPreferences[int](len(choices))
+			if !slices.Equal(prefsWeighted, emptyPrefs) {
+				t.Errorf("weight %d: expected zero preferences after UnvoteWeighted, got %v", weight, prefsWeighted)
+			}
+			if !slices.Equal(prefsWeighted, prefsLoop) {
+				t.Errorf("weight %d: preferences mismatch: weighted=%v, loop=%v", weight, prefsWeighted, prefsLoop)
+			}
+
+			// Test Voting method
+			v := schulze.NewVoting(choices)
+			recV, err := v.VoteRankedWeighted(ranked, weight)
+			if err != nil {
+				t.Fatalf("Voting.VoteRankedWeighted: %v", err)
+			}
+			if err := v.UnvoteWeighted(recV, weight); err != nil {
+				t.Fatalf("Voting.UnvoteWeighted: %v", err)
+			}
+			if !slices.Equal(v.Preferences(), emptyPrefs) {
+				t.Errorf("weight %d: Voting preferences not empty: %v", weight, v.Preferences())
+			}
+		}
+	})
+}
+
+func BenchmarkVoteWeighted(b *testing.B) {
+	choices := make([]string, 100)
+	for i := range choices {
+		choices[i] = fmt.Sprintf("choice_%d", i)
+	}
+	ranked := make([][]string, 20)
+	for i := range ranked {
+		ranked[i] = choices[i*5 : (i+1)*5]
+	}
+
+	b.Run("single weighted vote W=10", func(b *testing.B) {
+		prefs := schulze.NewPreferences[int](len(choices))
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			_, _ = schulze.VoteRankedWeighted(prefs, choices, ranked, 10)
+		}
+	})
+
+	b.Run("loop of 10 votes W=1", func(b *testing.B) {
+		prefs := schulze.NewPreferences[int](len(choices))
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			for range 10 {
+				_, _ = schulze.VoteRanked(prefs, choices, ranked)
+			}
+		}
+	})
 }

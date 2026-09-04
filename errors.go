@@ -13,6 +13,9 @@ import (
 // ErrEmptyChoices indicates that an operation was attempted with an empty choices slice.
 var ErrEmptyChoices = errors.New("schulze: choices cannot be empty")
 
+// ErrInvalidWeight indicates that a voting operation was attempted with non-positive weight.
+var ErrInvalidWeight = errors.New("schulze: weight must be greater than zero")
+
 // UnknownChoiceError indicates that a choice in a ballot is not among known choices.
 type UnknownChoiceError[C comparable] struct {
 	Choice C

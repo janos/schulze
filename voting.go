@@ -37,10 +37,20 @@ func (v *Voting[C]) Preferences() []int {
 	return slices.Clone(v.preferences)
 }
 
+// VoteWeighted adds voting preferences by a single voting ballot scaled by the specified weight.
+func (v *Voting[C]) VoteWeighted(b Ballot[C], weight int) (Record[C], error) {
+	return VoteWeighted(v.preferences, v.choices, b, weight)
+}
+
 // Vote adds voting preferences by a single voting ballot. A record of a
 // complete and normalized preferences is returned that can be used to unvote.
 func (v *Voting[C]) Vote(b Ballot[C]) (Record[C], error) {
 	return Vote(v.preferences, v.choices, b)
+}
+
+// VoteRankedWeighted adds voting preferences from a pre-ranked slice of choices scaled by the specified weight.
+func (v *Voting[C]) VoteRankedWeighted(rankedChoices [][]C, weight int) (Record[C], error) {
+	return VoteRankedWeighted(v.preferences, v.choices, rankedChoices, weight)
 }
 
 // VoteRanked adds voting preferences from a pre-ranked slice of choices.
@@ -57,6 +67,11 @@ func (v *Voting[C]) VoteFrom[T any](item T, ranker func(item T, choice C) (rank 
 		}
 	}
 	return v.Vote(b)
+}
+
+// UnvoteWeighted removes voting preferences from a single voting ballot record scaled by the specified weight.
+func (v *Voting[C]) UnvoteWeighted(r Record[C], weight int) error {
+	return UnvoteWeighted(v.preferences, v.choices, r, weight)
 }
 
 // Unvote removes voting preferences from a single voting ballot record.
