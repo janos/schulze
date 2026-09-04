@@ -18,12 +18,15 @@ The act of voting represents calling the `Vote` function with a `Ballot` map whe
 
 Alternatively, `VoteRanked` accepts a pre-ordered slice of ranks (`[][]C`), avoiding map hashing overhead and enabling high-performance, low-allocation ingestion.
 
+For elections where voters have different voting powers (such as shareholder voting, token- or stake-weighted governance, or pre-aggregated ballot batches), `VoteWeighted` and `VoteRankedWeighted` scale pairwise preferences by a positive numeric weight. Correspondingly, `UnvoteWeighted` removes a weighted vote using the ballot's `Record` and the original weight. Weights must be strictly greater than zero; non-positive weights return `ErrInvalidWeight`.
+
 ### Features
 
-- **Reversible voting**: The `Unvote` function allows rolling back a previously added `Ballot` using its returned `Record`, enabling voters to change their vote without re-tallying all ballots.
+- **Reversible voting**: The `Unvote` and `UnvoteWeighted` functions allow rolling back a previously added ballot using its returned `Record`, enabling voters to change their vote without re-tallying all ballots.
+- **Weighted voting**: `VoteWeighted`, `VoteRankedWeighted`, and `UnvoteWeighted` scale preferences by a voter's voting power (e.g. shareholder voting, stake-weighted governance, or batch processing), validating that weight is greater than zero (`ErrInvalidWeight`).
 - **Dynamic candidate adjustment**: `SetChoices` updates the pairwise preferences if choices need to be added, removed, or rearranged during active voting, while mathematically preserving consistency.
 - **Choice Validation**: `ValidateChoices` ensures choices list is not empty and contains no duplicate candidates.
-- **Direct ranked slice voting**: `VoteRanked` accepts ranked slices of candidates (`[][]C`).
+- **Direct ranked slice voting**: `VoteRanked` and `VoteRankedWeighted` accept ranked slices of candidates (`[][]C`).
 - **Generic Ballot Ingestion**: `VoteFrom` enables voting directly from arbitrary external structures using a custom ranking function.
 - **Type transformations (`Map`)**: `Record`, `Result`, `Duel`, and `Voting` support Go method type parameters via `.Map(...)` to translate between choice identifiers (e.g. `UUID` $\leftrightarrow$ `string` $\leftrightarrow$ `int`).
 - **Standard Go iterators**: `Duels` provides a standard `iter.Seq[*Duel[C]]` iterator for range-over-func loops.
@@ -36,6 +39,8 @@ Alternatively, `VoteRanked` accepts a pre-ordered slice of ranks (`[][]C`), avoi
 ### `Voting`
 
 `Voting[C]` holds the number of votes for every pair of choices. It is a convenient construct to use when the preferences slice does not have to be exposed, and should be kept safe from accidental mutation. Methods on the `Voting` type are not safe for concurrent calls.
+
+It provides methods for both standard and weighted voting (`Vote`, `VoteWeighted`, `VoteRanked`, `VoteRankedWeighted`, `Unvote`, `UnvoteWeighted`, `VoteFrom`), as well as candidate updates, mapping, and preference import/export.
 
 ## Results & Duels
 
